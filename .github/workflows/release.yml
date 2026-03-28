@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate SKILL.md frontmatter
+        run: node scripts/validate-skills.mjs
+
+      - name: Trigger skills.sh indexing
+        run: npx --yes skills add liberfi-io/liberfi-skills --list -y
+        continue-on-error: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --generate-notes \
+            --title "Release ${{ github.ref_name }}"
+
+      - name: Notify Lark on success
+        if: success()
+        run: |
+          node << 'SCRIPT'
+          const { createHmac } = require("crypto");
+
+          const webhookUrl = process.env.LARK_WEBHOOK_URL;
+          const signKey = process.env.LARK_SIGN_KEY;
+          const tag = process.env.TAG;
+          const repo = process.env.GITHUB_REPOSITORY;
+          const runUrl = `${process.env.GITHUB_SERVER_URL}/${repo}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+          const releaseUrl = `${process.env.GITHUB_SERVER_URL}/${repo}/releases/tag/${tag}`;
+
+          if (!webhookUrl) {
+            console.log("LARK_WEBHOOK_URL not set, skipping notification");
+            process.exit(0);
+          }
+
+          const message = `liberfi-skills ${tag} released successfully.\nRelease: ${releaseUrl}\nAction: ${runUrl}`;
+          const data = {
+            msg_type: "post",
+            content: {
+              post: {
+                en_us: {
+                  title: "Release Succeeded",
+                  content: [[{ tag: "text", text: message }]],
+                },
+              },
+            },
+          };
+
+          if (signKey) {
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            const stringToSign = `${timestamp}\n${signKey}`;
+            const sign = createHmac("sha256", stringToSign).update("").digest("base64");
+            data.timestamp = timestamp;
+            data.sign = sign;
+          }
+
+          fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data),
+          })
+            .then((r) => r.json())
+            .then((d) => console.log("Lark notified:", d))
+            .catch((e) => console.error("Lark notification failed:", e));
+          SCRIPT
+        env:
+          TAG: ${{ github.ref_name }}
+          LARK_WEBHOOK_URL: ${{ secrets.LARK_WEBHOOK_URL }}
+          LARK_SIGN_KEY: ${{ secrets.LARK_SIGN_KEY }}
