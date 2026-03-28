@@ -28,9 +28,11 @@ Global security rules for all LiberFi Agent Skills. Every skill MUST follow thes
 | Token search / info / security / pools / holders / traders / candles | Low | Read-only data query |
 | Ranking trending / new | Low | Read-only data query |
 | Wallet holdings / activity / stats / net-worth | Low | Read-only data query |
+| Me holdings / activity / stats / net-worth | Low | Read-only query on authenticated user's TEE wallet |
 | Swap chains / tokens listing | Low | Read-only data query |
 | Swap quote | Medium | Shows a trade preview; no funds at risk, but user should review |
-| Swap execute (build transaction) | High | Generates a signable transaction that could move funds |
+| Swap execute | High | Signs and broadcasts via TEE wallet server-side; funds move immediately |
+| Swap sign-and-send | High | Signs and broadcasts via TEE wallet server-side in one atomic step; funds move immediately |
 | Tx estimate | Medium | Fee estimation; no funds at risk |
 | Tx send (broadcast) | High | Irreversible on-chain transaction; funds will move |
 

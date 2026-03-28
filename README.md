@@ -6,15 +6,22 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 
 | Skill | Description | Reference |
 |-------|-------------|-----------|
+| [liberfi-auth](skills/liberfi-auth/SKILL.md) | Authentication: key-based login, email OTP, session management, wallet assignment | [SKILL.md](skills/liberfi-auth/SKILL.md) |
 | [liberfi-token](skills/liberfi-token/SKILL.md) | Token research: search, details, security audit, pools, holders, traders, K-line | [SKILL.md](skills/liberfi-token/SKILL.md) |
 | [liberfi-market](skills/liberfi-market/SKILL.md) | Market discovery: trending token rankings, new token listings | [SKILL.md](skills/liberfi-market/SKILL.md) |
-| [liberfi-portfolio](skills/liberfi-portfolio/SKILL.md) | Portfolio analysis: wallet holdings, activity, PnL stats, net worth | [SKILL.md](skills/liberfi-portfolio/SKILL.md) |
-| [liberfi-swap](skills/liberfi-swap/SKILL.md) | Swap & transactions: quotes, trade execution, fee estimation, broadcast | [SKILL.md](skills/liberfi-swap/SKILL.md) |
+| [liberfi-portfolio](skills/liberfi-portfolio/SKILL.md) | Portfolio analysis: public wallet & own TEE wallet holdings, activity, PnL stats, net worth | [SKILL.md](skills/liberfi-portfolio/SKILL.md) |
+| [liberfi-swap](skills/liberfi-swap/SKILL.md) | Swap & transactions: quotes, TEE wallet trade execution, fee estimation, broadcast | [SKILL.md](skills/liberfi-swap/SKILL.md) |
 
 ## Capability Matrix
 
 | Capability | Skill | Auth | Mutating | Needs Confirmation |
 |------------|-------|------|----------|--------------------|
+| Key-based login (agent / headless) | liberfi-auth | No | No | No |
+| Email OTP login — send code | liberfi-auth | No | No | No |
+| Email OTP login — verify code | liberfi-auth | No | No | No |
+| Check current user profile | liberfi-auth | Yes | No | No |
+| Check local session status | liberfi-auth | No | No | No |
+| Logout (clear local session) | liberfi-auth | No | No | No |
 | Search tokens by keyword | liberfi-token | No | No | No |
 | Get token details (price, MC, volume) | liberfi-token | No | No | No |
 | Run token security audit | liberfi-token | No | No | No |
@@ -24,16 +31,21 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 | Get K-line candlestick data | liberfi-token | No | No | No |
 | View trending token rankings | liberfi-market | No | No | No |
 | Discover newly listed tokens | liberfi-market | No | No | No |
-| View wallet token holdings | liberfi-portfolio | No | No | No |
-| View wallet transaction activity | liberfi-portfolio | No | No | No |
-| Check wallet PnL statistics | liberfi-portfolio | No | No | No |
-| Get wallet net worth | liberfi-portfolio | No | No | No |
+| View public wallet token holdings | liberfi-portfolio | No | No | No |
+| View public wallet transaction activity | liberfi-portfolio | No | No | No |
+| Check public wallet PnL statistics | liberfi-portfolio | No | No | No |
+| Get public wallet net worth | liberfi-portfolio | No | No | No |
+| View own TEE wallet holdings | liberfi-portfolio | Yes | No | No |
+| View own TEE wallet activity | liberfi-portfolio | Yes | No | No |
+| Check own TEE wallet PnL statistics | liberfi-portfolio | Yes | No | No |
+| Get own TEE wallet net worth | liberfi-portfolio | Yes | No | No |
 | List supported swap chains | liberfi-swap | No | No | No |
 | List available swap tokens | liberfi-swap | No | No | No |
 | Get swap quote | liberfi-swap | No | No | No |
-| Build swap transaction | liberfi-swap | No | Yes | Yes |
+| Execute swap via TEE wallet | liberfi-swap | Yes | Yes | Yes |
+| Sign and broadcast swap in one step | liberfi-swap | Yes | Yes | Yes (irreversible) |
 | Estimate transaction fee | liberfi-swap | No | No | No |
-| Broadcast signed transaction | liberfi-swap | No | Yes | Yes (irreversible) |
+| Broadcast signed transaction | liberfi-swap | Yes | Yes | Yes (irreversible) |
 
 ## Getting Started
 
@@ -176,8 +188,9 @@ See [vercel-labs/skills](https://github.com/vercel-labs/skills) for the full lis
 
 ## Security
 
-- No API keys or authentication required — all commands use public endpoints
-- Swap operations generate transaction data but do NOT sign automatically — the user must sign with their own wallet
+- Read-only commands (token info, rankings, public wallet) use public endpoints — no authentication required
+- Mutating commands (`swap execute`, `swap sign-and-send`, `tx send`, `me *`) require JWT authentication — run `lfi login key --json` (agent) or email OTP flow (human) first
+- `swap execute` and `swap sign-and-send` sign and broadcast transactions server-side via the authenticated user's TEE wallet — no manual signing step is required, and funds move immediately upon execution
 - Token security audits are run as mandatory pre-checks before any swap
 - All mutating operations require explicit user confirmation
 - See [security-policy.md](skills/shared/security-policy.md) for the complete security policy
