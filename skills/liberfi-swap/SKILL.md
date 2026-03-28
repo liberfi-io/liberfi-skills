@@ -33,17 +33,22 @@ description: >
   Do NOT activate on vague inputs like "trade" or "buy" without specifying tokens or amounts.
 user-invocable: true
 allowed-commands:
-  - "liberfi swap chains"
-  - "liberfi swap tokens"
-  - "liberfi swap quote"
-  - "liberfi swap execute"
-  - "liberfi tx estimate"
-  - "liberfi tx send"
-  - "liberfi token security"
-  - "liberfi ping"
+  - "lfi swap chains"
+  - "lfi swap tokens"
+  - "lfi swap quote"
+  - "lfi swap execute"
+  - "lfi tx estimate"
+  - "lfi tx send"
+  - "lfi token security"
+  - "lfi ping"
+  - "lfi status"
+  - "lfi login key"
+  - "lfi login"
+  - "lfi verify"
+  - "lfi whoami"
 metadata:
   author: liberfi
-  version: "0.1.0"
+  version: "0.2.0"
   homepage: "https://liberfi.io"
   cli: ">=0.1.0"
 ---
@@ -57,11 +62,26 @@ Execute token swaps and broadcast transactions using the LiberFi CLI.
 See [bootstrap.md](../shared/bootstrap.md) for CLI installation and connectivity verification.
 
 This skill's auth requirements:
-- **All commands**: No authentication required (public API)
 
-**Additional pre-flight for swap operations**:
-- Confirm the user has a wallet address ready
-- Confirm the user knows the input/output token addresses (or help look them up via `liberfi swap tokens` or `liberfi token search`)
+| Command | Requires Auth |
+|---------|--------------|
+| `lfi swap chains` | No |
+| `lfi swap tokens` | No |
+| `lfi swap quote` | No |
+| `lfi tx estimate` | No |
+| `lfi swap execute` | **Yes** (JWT, uses Privy TEE wallet) |
+| `lfi tx send` | **Yes** (JWT, uses Privy TEE wallet) |
+
+**Authentication pre-flight for swap execute / tx send:**
+1. Run `lfi status --json`
+2. If not authenticated:
+   - Agent: `lfi login key --role AGENT --json`
+   - Human: `lfi login <email> --json` → `lfi verify <otpId> <code> --json`
+3. Run `lfi whoami --json` to confirm wallet addresses
+
+**Additional pre-flight for swap operations:**
+- Confirm the user knows the input/output token addresses (or help look them up via `lfi swap tokens` or `lfi token search`)
+- Note: `--account` is now **optional** for `swap execute`. If omitted, the server uses the authenticated user's Privy TEE wallet address automatically.
 
 ## Skill Routing
 
@@ -81,17 +101,17 @@ This skill's auth requirements:
 
 | Command | Description | Auth |
 |---------|-------------|------|
-| `liberfi swap chains` | List all supported swap chains | No |
-| `liberfi swap tokens [--chain-id <id>]` | List available swap tokens | No |
+| `lfi swap chains` | List all supported swap chains | No |
+| `lfi swap tokens [--chain-id <id>]` | List available swap tokens | No |
 
 ### Mutating Commands (generate transactions)
 
 | Command | Description | Auth |
 |---------|-------------|------|
-| `liberfi swap quote --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Get a swap quote | No |
-| `liberfi swap execute --account <wallet> --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Build a signable swap transaction | No |
-| `liberfi tx estimate --chain-family <fam> --chain-id <id> --data '<json>'` | Estimate transaction fee / gas | No |
-| `liberfi tx send --chain-family <fam> --chain-id <id> --signed-tx <data>` | Broadcast a signed transaction | No |
+| `lfi swap quote --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Get a swap quote | No |
+| `lfi swap execute --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Execute swap via Privy TEE wallet | **Yes** |
+| `lfi tx estimate --chain-family <fam> --chain-id <id> --data '<json>'` | Estimate transaction fee / gas | No |
+| `lfi tx send --chain-family <fam> --chain-id <id> --signed-tx <data>` | Broadcast a signed transaction | **Yes** |
 
 ### Parameter Reference
 
@@ -105,7 +125,7 @@ This skill's auth requirements:
 - `--swap-mode <mode>` — `ExactIn` (default) or `ExactOut`
 
 **Execute-only additional parameter**:
-- `--account <address>` — **Required**. Wallet address that will sign the transaction
+- `--account <address>` — **Optional**. Wallet address override. If omitted, the server uses the authenticated user's Privy TEE wallet automatically. Requires authentication.
 - `--quote-result <json>` — Opaque quote result JSON from a prior `swap quote` call (pass through without modification)
 
 **Tx estimate parameters**:
@@ -122,52 +142,64 @@ This skill's auth requirements:
 
 ### List Supported Chains
 
-1. **Fetch chains**: `liberfi swap chains --json`
+1. **Fetch chains**: `lfi swap chains --json`
 2. **Present**: Show chain name, chain ID, chain family (evm/svm)
 3. **Suggest next step**: "Which chain do you want to trade on?"
 
 ### Find Available Tokens
 
-1. **Fetch tokens**: `liberfi swap tokens --chain-id <id> --json`
+1. **Fetch tokens**: `lfi swap tokens --chain-id <id> --json`
 2. **Present**: Show token name, symbol, address
 3. **Suggest next step**: "Which tokens do you want to swap?"
 
 ### Get a Swap Quote
 
 1. **Collect inputs**: Input token, output token, amount, chain family, chain ID
-2. **(mandatory)** Run security check: `liberfi token security <chain> <outputTokenAddress> --json`
+2. **(mandatory)** Run security check: `lfi token security <chain> <outputTokenAddress> --json`
 3. Review security result — warn user if any risk flags
-4. **Get quote**: `liberfi swap quote --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --json`
+4. **Get quote**: `lfi swap quote --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --json`
 5. **Present**: Show input amount, expected output amount, price impact, slippage, route
 6. **Suggest next step**: "Want to execute this swap?"
 
 ### Execute a Swap (Full Flow)
 
-1. **Collect inputs**: Account (wallet address), input/output tokens, amount, chain
-2. **(mandatory)** Security check: `liberfi token security <chain> <outputTokenAddress> --json`
+**Authentication pre-flight (do this first):**
+```bash
+lfi status --json   # check session
+# If not authenticated:
+lfi login key --role AGENT --json   # agent
+# or: lfi login <email> --json → lfi verify <otpId> <code> --json
+lfi whoami --json   # confirm evmAddress / solAddress
+```
+
+1. **Collect inputs**: Input/output tokens, amount, chain
+2. **(mandatory)** Security check: `lfi token security <chain> <outputTokenAddress> --json`
 3. If security flags found → warn user, recommend NOT proceeding
-4. **Get quote first**: `liberfi swap quote --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --json`
+4. **Get quote first**: `lfi swap quote --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --json`
 5. **Present swap summary to user**:
    - Input: X amount of TokenA
    - Output: ~Y amount of TokenB
    - Slippage: Z%
    - Estimated fees (if available)
 6. **(mandatory)** Wait for explicit user confirmation
-7. **Build transaction**: `liberfi swap execute --account <wallet> --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --quote-result '<quoteJson>' --json`
-8. The response contains unsigned transaction data for the user/wallet to sign
-9. **Suggest next step**: "Sign this transaction with your wallet, then I can broadcast it"
+7. **Execute swap**: `lfi swap execute --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --quote-result '<quoteJson>' --json`
+   - The server signs the transaction using the authenticated user's Privy TEE wallet.
+   - No manual signing step required — the response contains the result or signed tx hash.
+8. **Suggest next step**: "Swap submitted! You can track it on the block explorer."
 
 ### Estimate Transaction Fee
 
-1. **Estimate**: `liberfi tx estimate --chain-family <fam> --chain-id <id> --data '<txJson>' --json`
+1. **Estimate**: `lfi tx estimate --chain-family <fam> --chain-id <id> --data '<txJson>' --json`
 2. **Present**: Show estimated gas/fee in native token and USD equivalent
-3. **Suggest next step**: "Ready to sign and send?"
+3. **Suggest next step**: "Ready to send?"
 
-### Broadcast Signed Transaction
+### Broadcast Signed Transaction (when using external wallet)
 
-1. **(mandatory)** Confirm user has signed the transaction
+When the user has signed the transaction externally (not using TEE wallet):
+
+1. **(mandatory)** Ensure authenticated: `lfi status --json`
 2. **(mandatory)** Final confirmation: "Are you sure you want to broadcast this transaction? This is irreversible."
-3. **Send**: `liberfi tx send --chain-family <fam> --chain-id <id> --signed-tx <signedData> --json`
+3. **Send**: `lfi tx send --chain-family <fam> --chain-id <id> --signed-tx <signedData> --json`
 4. **Present**: Show transaction hash
 5. **Suggest next step**: "Transaction submitted! You can track it on the block explorer."
 
@@ -175,35 +207,40 @@ This skill's auth requirements:
 
 ### "I want to swap SOL for USDC"
 
-> Full flow: token → swap → swap
+> Full flow: auth → token → swap
 
-1. **token** → `liberfi token search --q "USDC" --chains sol --json` — Find USDC address on Solana
-2. **token** → `liberfi token security sol <usdcAddress> --json` — Security check (mandatory)
-3. **swap** → `liberfi swap quote --in So11111111111111111111111111111111111111112 --out <usdcAddress> --amount <amt> --chain-family svm --chain-id 0 --json` — Get quote
-4. Present quote summary, wait for user confirmation
-5. **swap** → `liberfi swap execute --account <wallet> ...` — Build transaction
-6. User signs → `liberfi tx send ...` — Broadcast
+1. **auth** → `lfi status --json` — Check session; if not authed → `lfi login key --json`
+2. **auth** → `lfi whoami --json` — Confirm solAddress
+3. **token** → `lfi token search --q "USDC" --chains sol --json` — Find USDC address on Solana
+4. **token** → `lfi token security sol <usdcAddress> --json` — Security check (mandatory)
+5. **swap** → `lfi swap quote --in So11111111111111111111111111111111111111112 --out <usdcAddress> --amount <amt> --chain-family svm --chain-id 0 --json` — Get quote
+6. Present quote summary, wait for user confirmation
+7. **swap** → `lfi swap execute --in ... --out ... --amount ... --chain-family svm --chain-id 0 --json` — Server signs via TEE wallet
 
 ### "What's the best price to buy this trending token?"
 
-> Full flow: market → token → swap
+> Full flow: auth → market → token → swap
 
-1. **market** → `liberfi ranking trending sol 1h --limit 5 --json` — Get trending tokens
-2. User picks a token
-3. **token** → `liberfi token security sol <address> --json` — Mandatory security check
-4. **swap** → `liberfi swap quote --in <baseToken> --out <address> --amount <amt> --chain-family svm --chain-id 0 --json`
-5. Present quote with price impact analysis
+1. **auth** → `lfi status --json` — Check session; if not authed → `lfi login key --json`
+2. **market** → `lfi ranking trending sol 1h --limit 5 --json` — Get trending tokens
+3. User picks a token
+4. **token** → `lfi token security sol <address> --json` — Mandatory security check
+5. **swap** → `lfi swap quote --in <baseToken> --out <address> --amount <amt> --chain-family svm --chain-id 0 --json`
+6. Present quote with price impact analysis, wait for confirmation
+7. **swap** → `lfi swap execute --in ... --out ... --json` — Server signs via TEE wallet
 
 ### "Check my wallet, then sell half of my biggest holding"
 
-> Full flow: portfolio → token → swap
+> Full flow: auth → portfolio → token → swap
 
-1. **portfolio** → `liberfi wallet holdings sol <walletAddress> --json` — Get holdings
-2. Identify largest holding, calculate half amount in smallest unit
-3. **token** → `liberfi token security sol <tokenAddress> --json` — Security check
-4. **swap** → `liberfi swap quote --in <tokenAddress> --out <baseToken> --amount <halfAmt> --chain-family svm --chain-id 0 --json`
-5. Present quote, wait for confirmation
-6. **swap** → `liberfi swap execute ...` → sign → `liberfi tx send ...`
+1. **auth** → `lfi status --json` — Check session; if not authed → `lfi login key --json`
+2. **auth** → `lfi whoami --json` — Get solAddress / evmAddress
+3. **portfolio** → `lfi wallet holdings sol <solAddress> --json` — Get holdings
+4. Identify largest holding, calculate half amount in smallest unit
+5. **token** → `lfi token security sol <tokenAddress> --json` — Security check
+6. **swap** → `lfi swap quote --in <tokenAddress> --out <baseToken> --amount <halfAmt> --chain-family svm --chain-id 0 --json`
+7. Present quote, wait for confirmation
+8. **swap** → `lfi swap execute --in ... --out ... --json` — Server signs via TEE wallet
 
 ## Suggest Next Steps
 
@@ -212,9 +249,10 @@ This skill's auth requirements:
 | Chain list | "Which chain do you want to trade on?" / "想在哪条链上交易？" |
 | Token list | "Which tokens do you want to swap?" / "想兑换哪些代币？" |
 | Swap quote | "Want to execute this swap?" / "要执行这笔兑换吗？" |
-| Swap execute | "Sign the transaction, then I can broadcast it." / "请签名交易，之后我可以广播。" |
-| Fee estimate | "Ready to sign and send?" / "准备好签名并发送了吗？" |
+| Swap execute (TEE) | "Swap submitted via your LiberFi TEE wallet!" / "已通过LiberFi TEE钱包提交兑换！" |
+| Fee estimate | "Ready to send?" / "准备好发送了吗？" |
 | Tx send | "Transaction submitted! Track it on the block explorer." / "交易已提交！可在区块浏览器上查看。" |
+| Not authenticated | "Please log in first: `lfi login key --json`" / "请先登录：`lfi login key --json`" |
 
 ## Edge Cases
 
@@ -232,10 +270,11 @@ This skill's auth requirements:
 | Pitfall | Correct Approach |
 |---------|-----------------|
 | Using human-readable amounts (e.g. "1 SOL") | Convert to smallest unit first: 1 SOL = 1,000,000,000 lamports |
-| Skipping security check before swap | ALWAYS run `liberfi token security` on the output token first |
+| Skipping security check before swap | ALWAYS run `lfi token security` on the output token first |
 | Executing swap without user confirmation | ALWAYS show quote summary and wait for explicit "yes" |
 | Passing modified quote_result to execute | Pass the quote_result JSON through WITHOUT any modification |
-| Broadcasting without confirming signing | Verify user has signed before calling `tx send` |
+| Calling `swap execute` without authentication | Check `lfi status --json` first; re-authenticate if needed |
+| Assuming a wallet address without checking | Call `lfi whoami --json` to get the confirmed evmAddress / solAddress |
 | Retrying failed tx send without checking | The tx may have been submitted; check on-chain status first |
 
 ## Security Notes

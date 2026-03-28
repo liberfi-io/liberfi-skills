@@ -76,14 +76,36 @@ Parse the `error.code` and `error.status` fields to determine the failure reason
 
 ## 7. Authentication
 
-The CLI currently does **not** require API keys or login. All commands are public.
+LiberFi uses JWT-based authentication for operations that involve wallet signing
+(swap execute, tx send). Query/read endpoints are public and require no login.
 
-> **Future-proofing**: If authentication is added later, the auth flow (e.g. `liberfi auth login`) will be documented here. Skills should check this section before assuming public access.
+**Two login modes** — see [liberfi-auth SKILL.md](../liberfi-auth/SKILL.md) for details:
+
+| Mode | Command | Best for |
+|------|---------|----------|
+| Key-based | `lfi login key --json` | Agents, automation, headless environments |
+| Email OTP | `lfi login <email> --json` → `lfi verify <otpId> <code> --json` | Human users |
+
+After login, the JWT is stored in `~/.liberfi/session.json` and automatically
+refreshed (proactive: 60 s before expiry; reactive: on 401 response).
+
+**Session state check:**
+```bash
+lfi status --json
+```
+- If `authenticated: true, expired: false` → proceed.
+- Otherwise → re-authenticate before calling protected commands.
 
 ## 8. Pre-flight Checklist (run before any skill command)
 
-1. Confirm `liberfi` is installed: `liberfi --version`
+1. Confirm `lfi` is installed: `lfi --version`
 2. If not installed → install via step 1
-3. Run `liberfi ping --json` to verify connectivity
+3. Run `lfi ping --json` to verify connectivity
 4. If ping fails → check network / `LIBERFI_API_BASE_URL`
-5. Proceed with skill commands, always appending `--json`
+5. **If the operation requires authentication** (swap execute, tx send, whoami):
+   a. Run `lfi status --json`
+   b. If not authenticated or expired:
+      - Agent: `lfi login key --role AGENT --name "AgentName" --json`
+      - Human: `lfi login <email> --json` → `lfi verify <otpId> <code> --json`
+   c. Confirm: `lfi whoami --json` (shows wallet addresses)
+6. Proceed with skill commands, always appending `--json`
