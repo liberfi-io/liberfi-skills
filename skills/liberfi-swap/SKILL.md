@@ -69,8 +69,8 @@ This skill's auth requirements:
 | `lfi swap tokens` | No |
 | `lfi swap quote` | No |
 | `lfi tx estimate` | No |
-| `lfi swap execute` | **Yes** (JWT, uses Privy TEE wallet) |
-| `lfi tx send` | **Yes** (JWT, uses Privy TEE wallet) |
+| `lfi swap execute` | **Yes** (JWT, uses TEE wallet) |
+| `lfi tx send` | **Yes** (JWT, uses TEE wallet) |
 
 **Authentication pre-flight for swap execute / tx send:**
 1. Run `lfi status --json`
@@ -81,7 +81,7 @@ This skill's auth requirements:
 
 **Additional pre-flight for swap operations:**
 - Confirm the user knows the input/output token addresses (or help look them up via `lfi swap tokens` or `lfi token search`)
-- Note: `--account` is now **optional** for `swap execute`. If omitted, the server uses the authenticated user's Privy TEE wallet address automatically.
+- Note: `--account` is now **optional** for `swap execute`. If omitted, the server uses the authenticated user's TEE wallet address automatically.
 
 ## Skill Routing
 
@@ -109,7 +109,7 @@ This skill's auth requirements:
 | Command | Description | Auth |
 |---------|-------------|------|
 | `lfi swap quote --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Get a swap quote | No |
-| `lfi swap execute --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Execute swap via Privy TEE wallet | **Yes** |
+| `lfi swap execute --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Execute swap via TEE wallet | **Yes** |
 | `lfi tx estimate --chain-family <fam> --chain-id <id> --data '<json>'` | Estimate transaction fee / gas | No |
 | `lfi tx send --chain-family <fam> --chain-id <id> --signed-tx <data>` | Broadcast a signed transaction | **Yes** |
 
@@ -125,7 +125,7 @@ This skill's auth requirements:
 - `--swap-mode <mode>` — `ExactIn` (default) or `ExactOut`
 
 **Execute-only additional parameter**:
-- `--account <address>` — **Optional**. Wallet address override. If omitted, the server uses the authenticated user's Privy TEE wallet automatically. Requires authentication.
+- `--account <address>` — **Optional**. Wallet address override. If omitted, the server uses the authenticated user's TEE wallet automatically. Requires authentication.
 - `--quote-result <json>` — Opaque quote result JSON from a prior `swap quote` call (pass through without modification)
 
 **Tx estimate parameters**:
@@ -183,7 +183,7 @@ lfi whoami --json   # confirm evmAddress / solAddress
    - Estimated fees (if available)
 6. **(mandatory)** Wait for explicit user confirmation
 7. **Execute swap**: `lfi swap execute --in <in> --out <out> --amount <amt> --chain-family <fam> --chain-id <id> --quote-result '<quoteJson>' --json`
-   - The server signs the transaction using the authenticated user's Privy TEE wallet.
+   - The server signs the transaction using the authenticated user's TEE wallet.
    - No manual signing step required — the response contains the result or signed tx hash.
 8. **Suggest next step**: "Swap submitted! You can track it on the block explorer."
 

@@ -7,15 +7,15 @@ description: >
   Two login modes are supported:
     1. Key-based (--key): Generates a local P-256 key pair and signs a
        timestamp. Ideal for agent / headless / automated environments.
-       No email required; a Privy TEE wallet is created automatically.
-    2. Email OTP: Sends a 6-digit code to the user's email via Resend.
+       No email required; a TEE wallet is created automatically.
+    2. Email OTP: Sends a 6-digit code to the user's email.
        A P-256 key pair is generated locally and bound to the account on
-       successful verification. A Privy TEE wallet is created automatically.
+       successful verification. A TEE wallet is created automatically.
 
   After authentication, a LiberFi JWT is stored in ~/.liberfi/session.json.
   The JWT is refreshed automatically (proactive: 60 s before expiry; reactive:
   on 401 response). The local P-256 private key is ONLY used to sign timestamps
-  for authentication — all on-chain operations use server-managed Privy TEE wallets.
+  for authentication — all on-chain operations use server-managed TEE wallets.
 
   Trigger words: login, sign in, authenticate, register, create account,
   logout, sign out, verify, check auth, am I logged in, session status,
@@ -71,7 +71,7 @@ lfi login key --role AGENT --name "MyAgent" --json
 2. Signs `Date.now()` (Unix ms string) with the local private key (SHA-256 + ECDSA P-256).
 3. Sends `POST /v1/auth/key` with `{ publicKeyHex, uncompressedPublicKeyHex, timestampMs, signature }`.
 4. Server verifies the signature and upserts the user record.
-5. If new user: server creates Privy server-owned EVM + SOL TEE wallets.
+5. If new user: server creates server-owned EVM + SOL TEE wallets.
 6. Returns a LiberFi JWT; stored in `~/.liberfi/session.json`.
 
 **Token refresh:**
@@ -211,29 +211,29 @@ Never share or transmit these files.
 
 ## Wallet Assignment
 
-After authentication, the user is assigned two Privy server-owned TEE wallets:
+After authentication, the user is assigned two server-owned TEE wallets:
 
 | Wallet | Field | Description |
 |--------|-------|-------------|
 | EVM | `evmAddress` | Ethereum-compatible wallet (used for EVM swap operations) |
 | Solana | `solAddress` | Solana wallet (used for SVM swap operations) |
 
-These wallets are managed by LiberFi's backend via the Privy Admin API.
+These wallets are managed by LiberFi's backend.
 The user's local P-256 private key is **never** used for on-chain signing.
 
 ---
 
 ## Website Integration
 
-Users who log in via the LiberFi website (Privy social login) can exchange
-their Privy identity token for a LiberFi JWT using:
+Users who log in via the LiberFi website (social login) can exchange
+their identity token for a LiberFi JWT using:
 
 ```
 POST /v1/auth/exchange
-{ "identityToken": "<privy-identity-token>" }
+{ "identityToken": "<identity-token>" }
 ```
 
-This is handled transparently by `PrivyAuthProvider.tsx` — CLI users do not
+This is handled transparently by the website's auth handler — CLI users do not
 need to interact with this endpoint.
 
 ---
