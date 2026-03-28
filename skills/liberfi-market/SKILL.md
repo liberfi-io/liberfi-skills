@@ -30,9 +30,9 @@ description: >
   the user wants rankings or new token discovery.
 user-invocable: true
 allowed-commands:
-  - "liberfi ranking trending"
-  - "liberfi ranking new"
-  - "liberfi ping"
+  - "lfi ranking trending"
+  - "lfi ranking new"
+  - "lfi ping"
 metadata:
   author: liberfi
   version: "0.1.0"
@@ -68,8 +68,8 @@ This skill's auth requirements:
 
 | Command | Description | Auth |
 |---------|-------------|------|
-| `liberfi ranking trending <chain> <duration>` | Get trending tokens by chain and time window | No |
-| `liberfi ranking new <chain>` | Get newly listed tokens on a chain | No |
+| `lfi ranking trending <chain> <duration>` | Get trending tokens by chain and time window | No |
+| `lfi ranking new <chain>` | Get newly listed tokens on a chain | No |
 
 ### Parameter Reference
 
@@ -93,28 +93,28 @@ This skill's auth requirements:
 ### View Trending Tokens
 
 1. **Determine parameters**: Ask user for chain and time window if not specified. Default: `sol` chain, `24h` duration
-2. **Fetch trending**: `liberfi ranking trending <chain> <duration> --limit 20 --json`
+2. **Fetch trending**: `lfi ranking trending <chain> <duration> --limit 20 --json`
 3. **Present results**: Show a table with Name, Symbol, Price, Change (%), Volume, Market Cap
 4. **Suggest next step**: "Want to see details or security audit for any of these tokens?"
 
 ### View Trending with Filters
 
 1. **Collect filters**: Launchpad platform, sort field, keywords
-2. **Fetch**: `liberfi ranking trending sol 1h --launchpad-platform "pump.fun" --sort-by volume --sort-dir desc --limit 20 --json`
+2. **Fetch**: `lfi ranking trending sol 1h --launchpad-platform "pump.fun" --sort-by volume --sort-dir desc --limit 20 --json`
 3. **Present**: Filtered results in table format
 4. **Suggest next step**: "Want to drill into any specific token?"
 
 ### Discover New Tokens
 
 1. **Determine chain**: Ask user if not specified. Default: `sol`
-2. **Fetch new tokens**: `liberfi ranking new <chain> --limit 20 --json`
+2. **Fetch new tokens**: `lfi ranking new <chain> --limit 20 --json`
 3. **Present**: Show recently listed tokens with name, symbol, price, launch time
 4. **Suggest next step**: "Want to check the security audit before investigating further?"
 
 ### Search Within Rankings
 
 1. **Collect keywords**: What the user is looking for
-2. **Fetch**: `liberfi ranking trending <chain> <duration> --search-keywords "meme,dog" --limit 20 --json`
+2. **Fetch**: `lfi ranking trending <chain> <duration> --search-keywords "meme,dog" --limit 20 --json`
 3. **Present**: Filtered results matching the keywords
 4. **Suggest next step**: "Want to see details for any of these?"
 
@@ -124,30 +124,30 @@ This skill's auth requirements:
 
 > Full flow: market → token → token → token
 
-1. **market** → `liberfi ranking trending sol 24h --sort-by volume --sort-dir desc --limit 10 --json`
-2. **token** → `liberfi token info sol <topTokenAddress> --json` — Details on #1 token
-3. **token** → `liberfi token security sol <topTokenAddress> --json` — Security audit
-4. **token** → `liberfi token holders sol <topTokenAddress> --json` — Holder analysis
+1. **market** → `lfi ranking trending sol 24h --sort-by volume --sort-dir desc --limit 10 --json`
+2. **token** → `lfi token info sol <topTokenAddress> --json` — Details on #1 token
+3. **token** → `lfi token security sol <topTokenAddress> --json` — Security audit
+4. **token** → `lfi token holders sol <topTokenAddress> --json` — Holder analysis
 5. Present consolidated findings
 
 ### "Find new pump.fun tokens and check if the hottest one is safe"
 
 > Full flow: market → token → token
 
-1. **market** → `liberfi ranking new sol --launchpad-platform "pump.fun" --limit 10 --json`
+1. **market** → `lfi ranking new sol --launchpad-platform "pump.fun" --limit 10 --json`
 2. Pick the top token by volume
-3. **token** → `liberfi token security sol <address> --json` — Security check
-4. **token** → `liberfi token info sol <address> --json` — Full details
+3. **token** → `lfi token security sol <address> --json` — Security check
+4. **token** → `lfi token info sol <address> --json` — Full details
 5. Present safety report
 
 ### "What are the top gainers on ETH? I want to buy one"
 
 > Full flow: market → token → swap
 
-1. **market** → `liberfi ranking trending eth 24h --sort-by price_change --sort-dir desc --limit 10 --json`
+1. **market** → `lfi ranking trending eth 24h --sort-by price_change --sort-dir desc --limit 10 --json`
 2. User selects a token
-3. **token** → `liberfi token security eth <address> --json` — Mandatory security check
-4. **swap** → `liberfi swap quote --in <inputToken> --out <address> --amount <amt> --chain-family evm --chain-id 1 --json`
+3. **token** → `lfi token security eth <address> --json` — Mandatory security check
+4. **swap** → `lfi swap quote --in <inputToken> --out <address> --amount <amt> --chain-family evm --chain-id 1 --json`
 5. Present quote and wait for user confirmation
 
 ## Suggest Next Steps
@@ -164,7 +164,7 @@ This skill's auth requirements:
 - **Invalid duration**: Suggest valid durations: `1h`, `6h`, `24h`
 - **No trending results**: Inform user: "No trending tokens found for this chain and time window. Try a different chain or longer duration."
 - **No new tokens**: Inform user: "No newly listed tokens found. The chain may have low launch activity right now."
-- **Network timeout**: Retry once after 3 seconds; if still fails, suggest checking connectivity via `liberfi ping --json`
+- **Network timeout**: Retry once after 3 seconds; if still fails, suggest checking connectivity via `lfi ping --json`
 - **Too many results**: Default to `--limit 20`; if user asks for more, paginate with `--cursor` and `--direction next`
 
 ## Security Notes
@@ -173,5 +173,5 @@ See [security-policy.md](../shared/security-policy.md) for global security rules
 
 Skill-specific rules:
 - Trending and new token rankings are **informational only** — a token appearing in rankings does not indicate endorsement or safety
-- Always recommend users run a security audit (`liberfi token security`) before interacting with newly discovered tokens
+- Always recommend users run a security audit (`lfi token security`) before interacting with newly discovered tokens
 - New tokens from launchpad platforms carry higher risk — proactively mention this when presenting results

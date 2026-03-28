@@ -34,14 +34,14 @@ description: >
   additional context specifying a search query, chain, or address.
 user-invocable: true
 allowed-commands:
-  - "liberfi token search"
-  - "liberfi token info"
-  - "liberfi token security"
-  - "liberfi token pools"
-  - "liberfi token holders"
-  - "liberfi token traders"
-  - "liberfi token candles"
-  - "liberfi ping"
+  - "lfi token search"
+  - "lfi token info"
+  - "lfi token security"
+  - "lfi token pools"
+  - "lfi token holders"
+  - "lfi token traders"
+  - "lfi token candles"
+  - "lfi ping"
 metadata:
   author: liberfi
   version: "0.1.0"
@@ -78,13 +78,13 @@ This skill's auth requirements:
 
 | Command | Description | Auth |
 |---------|-------------|------|
-| `liberfi token search --q <query> [--chains <chains>] [--limit <n>]` | Search tokens by keyword | No |
-| `liberfi token info <chain> <address>` | Get token details (price, MC, volume, supply) | No |
-| `liberfi token security <chain> <address>` | Run security audit (honeypot, mint, tax, proxy) | No |
-| `liberfi token pools <chain> <address> [--limit <n>]` | List DEX liquidity pools | No |
-| `liberfi token holders <chain> <address> [--limit <n>]` | List top token holders | No |
-| `liberfi token traders <chain> <address> [--tag <tag>]` | List top traders (default: smart money) | No |
-| `liberfi token candles <chain> <address> --resolution <res>` | Get K-line candlestick data | No |
+| `lfi token search --q <query> [--chains <chains>] [--limit <n>]` | Search tokens by keyword | No |
+| `lfi token info <chain> <address>` | Get token details (price, MC, volume, supply) | No |
+| `lfi token security <chain> <address>` | Run security audit (honeypot, mint, tax, proxy) | No |
+| `lfi token pools <chain> <address> [--limit <n>]` | List DEX liquidity pools | No |
+| `lfi token holders <chain> <address> [--limit <n>]` | List top token holders | No |
+| `lfi token traders <chain> <address> [--tag <tag>]` | List top traders (default: smart money) | No |
+| `lfi token candles <chain> <address> --resolution <res>` | Get K-line candlestick data | No |
 
 ### Parameter Reference
 
@@ -106,40 +106,40 @@ This skill's auth requirements:
 
 ### Search for a Token
 
-1. **Search**: `liberfi token search --q "bitcoin" --json`
+1. **Search**: `lfi token search --q "bitcoin" --json`
 2. **Present results**: Show token name, symbol, chain, address, and price in a table
 3. **Suggest next step**: "Would you like to see details for any of these tokens?"
 
 ### Get Token Details
 
-1. **Fetch info**: `liberfi token info <chain> <address> --json`
+1. **Fetch info**: `lfi token info <chain> <address> --json`
 2. **Present**: Display name, symbol, price, market cap, volume, supply, FDV
 3. **Suggest next step**: "Want to check the security audit or see the liquidity pools?"
 
 ### Run Security Audit
 
-1. **Fetch security**: `liberfi token security <chain> <address> --json`
+1. **Fetch security**: `lfi token security <chain> <address> --json`
 2. **Analyze result**: Check for honeypot, mint risk, proxy contract, buy/sell tax
 3. **Present risk summary**: If any flags are raised, clearly warn the user with risk level
 4. **Suggest next step**: If safe — "Want to check the liquidity pools or get a swap quote?" / If risky — "This token has risk flags. Proceed with caution."
 
 ### Analyze Token Holders
 
-1. **Fetch holders**: `liberfi token holders <chain> <address> --json`
+1. **Fetch holders**: `lfi token holders <chain> <address> --json`
 2. **Present**: Show top holders with address (truncated), holding amount, percentage
 3. **Highlight**: Flag if top 10 holders control >50% supply (concentration risk)
 4. **Suggest next step**: "Want to see smart money traders for this token?"
 
 ### View Smart Money Traders
 
-1. **Fetch traders**: `liberfi token traders <chain> <address> --tag smart --json`
+1. **Fetch traders**: `lfi token traders <chain> <address> --tag smart --json`
 2. **Present**: Show trader addresses, trade direction, amounts
 3. **Suggest next step**: "Want to check the K-line chart for entry timing?"
 
 ### Get K-line / Price Chart Data
 
 1. **Determine resolution**: Ask user or infer from context (e.g. "last hour" → `1m`, "last week" → `1h`, "last month" → `1d`)
-2. **Fetch candles**: `liberfi token candles <chain> <address> --resolution <res> --json`
+2. **Fetch candles**: `lfi token candles <chain> <address> --resolution <res> --json`
 3. **Present**: Summarize price trend — open, close, high, low, volume
 4. **Suggest next step**: "Want to get a swap quote for this token?"
 
@@ -149,29 +149,29 @@ This skill's auth requirements:
 
 > Full flow: token → token → token → swap
 
-1. **token** → `liberfi token info <chain> <address> --json` — Get price, market cap
-2. **token** → `liberfi token security <chain> <address> --json` — Security audit
-3. **token** → `liberfi token holders <chain> <address> --json` — Check holder concentration
-4. **token** → `liberfi token traders <chain> <address> --tag smart --json` — Smart money activity
+1. **token** → `lfi token info <chain> <address> --json` — Get price, market cap
+2. **token** → `lfi token security <chain> <address> --json` — Security audit
+3. **token** → `lfi token holders <chain> <address> --json` — Check holder concentration
+4. **token** → `lfi token traders <chain> <address> --tag smart --json` — Smart money activity
 5. Present consolidated research report to user
-6. If user wants to buy → **swap** → `liberfi swap quote ...`
+6. If user wants to buy → **swap** → `lfi swap quote ...`
 
 ### "What tokens are trending, and tell me about the top one"
 
 > Full flow: market → token → token
 
-1. **market** → `liberfi ranking trending <chain> <duration> --json` — Get trending list
-2. **token** → `liberfi token info <chain> <address> --json` — Details on #1 token
-3. **token** → `liberfi token security <chain> <address> --json` — Security audit
+1. **market** → `lfi ranking trending <chain> <duration> --json` — Get trending list
+2. **token** → `lfi token info <chain> <address> --json` — Details on #1 token
+3. **token** → `lfi token security <chain> <address> --json` — Security audit
 4. Present findings to user
 
 ### "Check if this token in my wallet is safe"
 
 > Full flow: portfolio → token
 
-1. **portfolio** → `liberfi wallet holdings <chain> <walletAddress> --json` — Get holdings
+1. **portfolio** → `lfi wallet holdings <chain> <walletAddress> --json` — Get holdings
 2. User selects a token from holdings
-3. **token** → `liberfi token security <chain> <tokenAddress> --json` — Security check
+3. **token** → `lfi token security <chain> <tokenAddress> --json` — Security check
 4. Present security results
 
 ## Suggest Next Steps
@@ -190,7 +190,7 @@ This skill's auth requirements:
 
 - **Token not found**: If `token search` returns empty, inform the user: "No tokens found for this keyword. Try a different name, symbol, or contract address."
 - **Invalid chain or address**: If the API returns a 400/404 error, ask the user to verify the chain name (e.g. `sol`, `eth`, `bsc`) and the contract address format
-- **Network timeout**: Retry once after 3 seconds; if still fails, inform the user to check connectivity via `liberfi ping --json`
+- **Network timeout**: Retry once after 3 seconds; if still fails, inform the user to check connectivity via `lfi ping --json`
 - **Empty holders / traders / pools**: Clearly state "No data available" — do not leave the response blank
 - **Security audit unavailable**: Some tokens may not have security data; inform the user that the audit is not available and recommend manual due diligence
 - **Rate limiting**: If the API returns 429, wait the duration indicated and retry; inform the user of the delay

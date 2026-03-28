@@ -21,7 +21,7 @@ description: >
 
   CRITICAL: Always use `--json` flag for structured output.
   CRITICAL: Swap amounts are in **smallest unit** (e.g. lamports for SOL, wei for ETH).
-  CRITICAL: ALWAYS run `liberfi token security` on the target token BEFORE executing a swap.
+  CRITICAL: ALWAYS run `lfi token security` on the target token BEFORE executing a swap.
   CRITICAL: NEVER execute swap or send transaction without explicit user confirmation.
 
   Do NOT use this skill for:
@@ -37,6 +37,7 @@ allowed-commands:
   - "lfi swap tokens"
   - "lfi swap quote"
   - "lfi swap execute"
+  - "lfi swap sign-and-send"
   - "lfi tx estimate"
   - "lfi tx send"
   - "lfi token security"
@@ -48,7 +49,7 @@ allowed-commands:
   - "lfi whoami"
 metadata:
   author: liberfi
-  version: "0.2.0"
+  version: "0.3.0"
   homepage: "https://liberfi.io"
   cli: ">=0.1.0"
 ---
@@ -110,6 +111,7 @@ This skill's auth requirements:
 |---------|-------------|------|
 | `lfi swap quote --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Get a swap quote | No |
 | `lfi swap execute --in <addr> --out <addr> --amount <amt> --chain-family <fam> --chain-id <id>` | Execute swap via TEE wallet | **Yes** |
+| `lfi swap sign-and-send --chain-family <fam> --chain-id <id> --quote-result '<json>'` | Build, sign, and broadcast swap in one step via TEE wallet | **Yes** |
 | `lfi tx estimate --chain-family <fam> --chain-id <id> --data '<json>'` | Estimate transaction fee / gas | No |
 | `lfi tx send --chain-family <fam> --chain-id <id> --signed-tx <data>` | Broadcast a signed transaction | **Yes** |
 
@@ -132,6 +134,12 @@ This skill's auth requirements:
 - `--chain-family <family>` — **Required**. `evm` or `svm`
 - `--chain-id <id>` — **Required**. Numeric chain ID
 - `--data <json>` — **Required**. Transaction data as JSON string (structure depends on chain family)
+
+**Sign-and-send parameters**:
+- `--chain-family <family>` — **Required**. `evm` or `svm`
+- `--chain-id <id>` — **Required**. Numeric chain ID
+- `--quote-result <json>` — **Required**. Full quote result JSON from a prior `lfi swap quote` call (pass through without modification)
+- `--slippage-bps <bps>` — Override slippage tolerance in basis points
 
 **Tx send parameters**:
 - `--chain-family <family>` — **Required**. `evm` or `svm`
@@ -186,6 +194,29 @@ lfi whoami --json   # confirm evmAddress / solAddress
    - The server signs the transaction using the authenticated user's TEE wallet.
    - No manual signing step required — the response contains the result or signed tx hash.
 8. **Suggest next step**: "Swap submitted! You can track it on the block explorer."
+
+### Execute Swap in One Step (sign-and-send)
+
+Use this when you already have a quote result and want to build, sign, and broadcast in a single call — no separate `swap execute` needed.
+
+**Authentication pre-flight (do this first):**
+```bash
+lfi status --json   # check session
+# If not authenticated:
+lfi login key --role AGENT --json   # agent
+# or: lfi login <email> --json → lfi verify <otpId> <code> --json
+```
+
+1. **Collect inputs**: Chain family, chain ID, and the quote result JSON from a prior `swap quote` call
+2. **(mandatory)** Security check already performed during the quote step — do not skip
+3. **Present swap summary** and wait for explicit user confirmation
+4. **Execute**: `lfi swap sign-and-send --chain-family <fam> --chain-id <id> --quote-result '<quoteJson>' --json`
+   - The server builds the transaction, signs it via the authenticated user's TEE wallet, and broadcasts it in one step.
+5. **Suggest next step**: "Swap submitted! You can track it on the block explorer."
+
+**When to use `sign-and-send` vs `execute`**:
+- Use `sign-and-send` when you already have a `quote_result` and want a single atomic call.
+- Use `execute` when you want to specify input/output tokens and amount directly (it internally fetches a quote).
 
 ### Estimate Transaction Fee
 
@@ -250,13 +281,14 @@ When the user has signed the transaction externally (not using TEE wallet):
 | Token list | "Which tokens do you want to swap?" / "想兑换哪些代币？" |
 | Swap quote | "Want to execute this swap?" / "要执行这笔兑换吗？" |
 | Swap execute (TEE) | "Swap submitted via your LiberFi TEE wallet!" / "已通过LiberFi TEE钱包提交兑换！" |
+| Swap sign-and-send | "Swap built, signed, and broadcast in one step!" / "兑换已一步完成构建、签名并广播！" |
 | Fee estimate | "Ready to send?" / "准备好发送了吗？" |
 | Tx send | "Transaction submitted! Track it on the block explorer." / "交易已提交！可在区块浏览器上查看。" |
 | Not authenticated | "Please log in first: `lfi login key --json`" / "请先登录：`lfi login key --json`" |
 
 ## Edge Cases
 
-- **Insufficient balance**: If the swap execute fails with an insufficient balance error, inform the user and suggest checking their holdings via `liberfi wallet holdings`
+- **Insufficient balance**: If the swap execute fails with an insufficient balance error, inform the user and suggest checking their holdings via `lfi wallet holdings`
 - **Slippage exceeded**: If the quote shows high price impact (>5%), warn the user and suggest reducing the amount or increasing slippage tolerance
 - **Invalid token address**: Validate format before calling the API; ask user to verify the address
 - **Unknown chain family**: Only `evm` and `svm` are supported; if user mentions a chain, map it to the correct family (e.g. Solana → `svm`, Ethereum/BSC/Base → `evm`)
@@ -272,10 +304,11 @@ When the user has signed the transaction externally (not using TEE wallet):
 | Using human-readable amounts (e.g. "1 SOL") | Convert to smallest unit first: 1 SOL = 1,000,000,000 lamports |
 | Skipping security check before swap | ALWAYS run `lfi token security` on the output token first |
 | Executing swap without user confirmation | ALWAYS show quote summary and wait for explicit "yes" |
-| Passing modified quote_result to execute | Pass the quote_result JSON through WITHOUT any modification |
-| Calling `swap execute` without authentication | Check `lfi status --json` first; re-authenticate if needed |
+| Passing modified quote_result to execute / sign-and-send | Pass the quote_result JSON through WITHOUT any modification |
+| Calling `swap execute` or `swap sign-and-send` without authentication | Check `lfi status --json` first; re-authenticate if needed |
 | Assuming a wallet address without checking | Call `lfi whoami --json` to get the confirmed evmAddress / solAddress |
 | Retrying failed tx send without checking | The tx may have been submitted; check on-chain status first |
+| Using `sign-and-send` when you don't yet have a quote | Call `swap quote` first to get the quote result, then pass it to `sign-and-send` |
 
 ## Security Notes
 
