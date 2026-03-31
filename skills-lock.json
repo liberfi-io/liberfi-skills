@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "liberfi-auth": {
+      "source": "liberfi-io/liberfi-skills",
+      "sourceType": "github",
+      "computedHash": "4ac5369006d2131c36293b39583d4a7a01cc76a7b7c329b9a47ca9767dc54714"
+    },
+    "liberfi-market": {
+      "source": "liberfi-io/liberfi-skills",
+      "sourceType": "github",
+      "computedHash": "eb6ed0311a25ddb1c02a89deaa9afc56b94a6e1c27081acc5e5259e54b8ee37c"
+    },
+    "liberfi-portfolio": {
+      "source": "liberfi-io/liberfi-skills",
+      "sourceType": "github",
+      "computedHash": "144237442d89a378831e3ab4dcb4033811507ef28ff29c2bbdc58c34261a2bc7"
+    },
+    "liberfi-swap": {
+      "source": "liberfi-io/liberfi-skills",
+      "sourceType": "github",
+      "computedHash": "29605bd7fe722dadf0164b0e6b849a8ce532d64bd1bf7ebede0c9fccd8eaeeb7"
+    },
+    "liberfi-predict": {
+      "source": "liberfi-io/liberfi-skills",
+      "sourceType": "github",
+      "computedHash": "80f46582f1c68684b840e33d4174d2f4489f14246db9a3726f64f851b14dad8c"
+    },
+    "liberfi-token": {
+      "source": "liberfi-io/liberfi-skills",
+      "sourceType": "github",
+      "computedHash": "3ca7e1dd7b5599deafea92054f36eb02bd43c81b876be6bbc902204ee6c9c2b5"
+    }
+  }
+}
