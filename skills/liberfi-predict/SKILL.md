@@ -2,14 +2,14 @@
 name: liberfi-predict
 description: >
   Browse and trade prediction markets: list events with filtering and search,
-  view event details and embedded markets, check USDC balances on DFlow and
+  view event details and embedded markets, check USDC balances on Kalshi and
   Polymarket, view portfolio positions and trade history, list and inspect
-  orders, request DFlow quotes, submit signed DFlow transactions, and create
+  orders, request Kalshi quotes, submit signed Kalshi transactions, and create
   Polymarket orders.
 
   Trigger words: predict, prediction, prediction market, prediction markets,
   events, event, bet, bets, forecast, binary option, binary outcome,
-  polymarket, dflow, outcome, prediction positions, prediction balance,
+  polymarket, kalshi, outcome, prediction positions, prediction balance,
   prediction orders, prediction trades, prediction event, browse predictions,
   place bet, prediction quote, submit prediction, prediction portfolio.
 
@@ -18,7 +18,7 @@ description: >
 
   CRITICAL: Always use `--json` flag for structured output.
   CRITICAL: Polymarket order creation requires all five POLY_* authentication flags.
-  CRITICAL: DFlow submit requires a signed transaction — never fabricate signatures.
+  CRITICAL: Kalshi submit requires a signed transaction — never fabricate signatures.
   CRITICAL: NEVER execute orders without explicit user confirmation.
 
   Do NOT use this skill for:
@@ -39,8 +39,8 @@ allowed-commands:
   - "lfi predict trades"
   - "lfi predict orders"
   - "lfi predict order"
-  - "lfi predict dflow-quote"
-  - "lfi predict dflow-submit"
+  - "lfi predict kalshi-quote"
+  - "lfi predict kalshi-submit"
   - "lfi predict polymarket-order"
   - "lfi ping"
 metadata:
@@ -52,7 +52,7 @@ metadata:
 
 # LiberFi Prediction Market
 
-Browse prediction market events, manage positions, and place orders on DFlow and Polymarket using the LiberFi CLI.
+Browse prediction market events, manage positions, and place orders on Kalshi and Polymarket using the LiberFi CLI.
 
 ## Pre-flight Checks
 
@@ -69,8 +69,8 @@ This skill's auth requirements:
 | `lfi predict trades` | No |
 | `lfi predict orders` | No (Polymarket needs POLY_* headers) |
 | `lfi predict order <id>` | No (Polymarket needs POLY_* headers) |
-| `lfi predict dflow-quote` | No |
-| `lfi predict dflow-submit` | No |
+| `lfi predict kalshi-quote` | No |
+| `lfi predict kalshi-submit` | No |
 | `lfi predict polymarket-order` | No (requires POLY_* headers) |
 
 **Polymarket authentication**: Polymarket order operations require CLOB HMAC authentication via five `--poly-*` flags. These are NOT LiberFi JWT credentials — they are the user's own Polymarket CLOB API credentials.
@@ -106,8 +106,8 @@ This skill's auth requirements:
 
 | Command | Description | Auth |
 |---------|-------------|------|
-| `lfi predict dflow-quote --input-mint <m> --output-mint <m> --amount <a> --user-public-key <k>` | Request DFlow quote | No |
-| `lfi predict dflow-submit --signed-transaction <tx> --order-context '<json>'` | Submit signed DFlow transaction | No |
+| `lfi predict kalshi-quote --input-mint <m> --output-mint <m> --amount <a> --user-public-key <k>` | Request Kalshi quote | No |
+| `lfi predict kalshi-submit --signed-transaction <tx> --order-context '<json>'` | Submit signed Kalshi transaction | No |
 | `lfi predict polymarket-order --body '<json>' --poly-api-key <k> --poly-address <a> --poly-signature <s> --poly-passphrase <p> --poly-timestamp <t>` | Create Polymarket order | POLY_* headers |
 
 ### Parameter Reference
@@ -116,7 +116,7 @@ This skill's auth requirements:
 - `--limit <n>` — Max results per page
 - `--cursor <cursor>` — Pagination cursor
 - `--status <status>` — Event status filter (e.g. `active`, `resolved`)
-- `--source <source>` — Provider source: `dflow` or `polymarket`
+- `--source <source>` — Provider source: `kalshi` or `polymarket`
 - `--tag-slug <slug>` — Filter by tag
 - `--search <query>` — Free-text search
 - `--sort-by <field>` — Sort field
@@ -125,10 +125,10 @@ This skill's auth requirements:
 
 **Event detail** (`lfi predict event <slug>`):
 - `<slug>` — **Required**. Event slug identifier
-- `--source <source>` — **Required**. Provider source: `dflow` or `polymarket`
+- `--source <source>` — **Required**. Provider source: `kalshi` or `polymarket`
 
 **Balance** (`lfi predict balance`):
-- `--source <source>` — **Required**. Provider source: `dflow` or `polymarket`
+- `--source <source>` — **Required**. Provider source: `kalshi` or `polymarket`
 - `--user <address>` — **Required**. User wallet address
 
 **Positions** (`lfi predict positions`):
@@ -145,7 +145,7 @@ This skill's auth requirements:
 
 **Orders** (`lfi predict orders`):
 - `--source <source>` — Provider source
-- `--wallet-address <address>` — Wallet address (required for dflow)
+- `--wallet-address <address>` — Wallet address (required for kalshi)
 - `--market-id <id>` — Market ID filter
 - `--asset-id <id>` — Asset ID filter
 - `--next-cursor <cursor>` — Pagination cursor
@@ -156,14 +156,14 @@ This skill's auth requirements:
 - `--source <source>` — **Required**. Provider source
 - Same `--poly-*` flags as orders list
 
-**DFlow quote** (`lfi predict dflow-quote`):
+**Kalshi quote** (`lfi predict kalshi-quote`):
 - `--input-mint <address>` — **Required**. Input token mint address
 - `--output-mint <address>` — **Required**. Output token mint address
 - `--amount <amount>` — **Required**. Swap amount
 - `--user-public-key <key>` — **Required**. User's Solana public key
 - `--slippage-bps <bps>` — Slippage tolerance in basis points
 
-**DFlow submit** (`lfi predict dflow-submit`):
+**Kalshi submit** (`lfi predict kalshi-submit`):
 - `--signed-transaction <tx>` — **Required**. Signed transaction data
 - `--order-context <json>` — **Required**. Order context as JSON string (contains `user_public_key`, `market_slug`, `side`, `outcome`, mints, `amount`, `price`, `slippage_bps`)
 
@@ -185,8 +185,8 @@ This skill's auth requirements:
 
 ### Browse Events by Source
 
-1. **Determine source**: Ask user for `dflow` or `polymarket`
-2. **Fetch**: `lfi predict events --source dflow --with-markets true --limit 20 --json`
+1. **Determine source**: Ask user for `kalshi` or `polymarket`
+2. **Fetch**: `lfi predict events --source kalshi --with-markets true --limit 20 --json`
 3. **Present**: Events filtered by provider
 4. **Suggest next step**: "Pick an event to view its markets and outcomes"
 
@@ -199,21 +199,21 @@ This skill's auth requirements:
 
 ### Check USDC Balance
 
-1. **Collect inputs**: Source (dflow/polymarket) and wallet address
+1. **Collect inputs**: Source (kalshi/polymarket) and wallet address
 2. **Fetch**: `lfi predict balance --source <source> --user <address> --json`
 3. **Present**: Available USDC balance
 4. **Suggest next step**: "Ready to place a prediction?" / "准备下注了吗？"
 
-### DFlow Order Flow (Quote → Sign → Submit)
+### Kalshi Order Flow (Quote → Sign → Submit)
 
-1. **Browse events**: `lfi predict events --source dflow --with-markets true --json`
-2. **View event**: `lfi predict event <slug> --source dflow --json` — identify market, outcomes, and mints
-3. **Check balance**: `lfi predict balance --source dflow --user <publicKey> --json`
-4. **Get quote**: `lfi predict dflow-quote --input-mint <inMint> --output-mint <outMint> --amount <amt> --user-public-key <key> --json`
+1. **Browse events**: `lfi predict events --source kalshi --with-markets true --json`
+2. **View event**: `lfi predict event <slug> --source kalshi --json` — identify market, outcomes, and mints
+3. **Check balance**: `lfi predict balance --source kalshi --user <publicKey> --json`
+4. **Get quote**: `lfi predict kalshi-quote --input-mint <inMint> --output-mint <outMint> --amount <amt> --user-public-key <key> --json`
 5. **Present quote**: Show expected output amount, price, slippage
 6. **(mandatory)** Wait for explicit user confirmation
 7. **User signs the transaction** (externally, e.g. via wallet)
-8. **Submit**: `lfi predict dflow-submit --signed-transaction <signedTx> --order-context '<contextJson>' --json`
+8. **Submit**: `lfi predict kalshi-submit --signed-transaction <signedTx> --order-context '<contextJson>' --json`
 9. **Present result**: Show signature, status
 
 ### Polymarket Order Flow
@@ -253,11 +253,11 @@ This skill's auth requirements:
 > Full flow: predict → predict → predict → predict → predict
 
 1. **predict** → `lfi predict events --search "bitcoin" --with-markets true --json`
-2. **predict** → `lfi predict event <slug> --source dflow --json` — view markets and outcomes
-3. **predict** → `lfi predict balance --source dflow --user <publicKey> --json` — check funds
-4. **predict** → `lfi predict dflow-quote --input-mint <in> --output-mint <out> --amount <amt> --user-public-key <key> --json` — get quote
+2. **predict** → `lfi predict event <slug> --source kalshi --json` — view markets and outcomes
+3. **predict** → `lfi predict balance --source kalshi --user <publicKey> --json` — check funds
+4. **predict** → `lfi predict kalshi-quote --input-mint <in> --output-mint <out> --amount <amt> --user-public-key <key> --json` — get quote
 5. Present quote, wait for confirmation, user signs transaction
-6. **predict** → `lfi predict dflow-submit --signed-transaction <tx> --order-context '<ctx>' --json`
+6. **predict** → `lfi predict kalshi-submit --signed-transaction <tx> --order-context '<ctx>' --json`
 
 ### "Check my prediction portfolio and trade history"
 
@@ -283,8 +283,8 @@ This skill's auth requirements:
 | Events list | "Want to view a specific event?" / "需要查看某个事件的详情？" |
 | Event detail | "Want to check your balance or place an order?" / "需要查看余额或下单？" |
 | Balance check | "Ready to place a prediction?" / "准备下注了吗？" |
-| DFlow quote | "Want to proceed with this trade?" / "要继续这笔交易吗？" |
-| DFlow submit | "Order submitted! Check your positions to verify." / "订单已提交！查看持仓确认。" |
+| Kalshi quote | "Want to proceed with this trade?" / "要继续这笔交易吗？" |
+| Kalshi submit | "Order submitted! Check your positions to verify." / "订单已提交！查看持仓确认。" |
 | Polymarket order | "Order created! Check order status to confirm." / "订单已创建！查看订单状态确认。" |
 | Positions view | "Want to see trade history?" / "需要查看交易历史？" |
 | Trade history | "Want to check current positions?" / "需要查看当前持仓？" |
@@ -292,21 +292,21 @@ This skill's auth requirements:
 
 ## Edge Cases
 
-- **Invalid source**: If the API returns an error about source, list valid sources (`dflow`, `polymarket`) and ask the user to choose
+- **Invalid source**: If the API returns an error about source, list valid sources (`kalshi`, `polymarket`) and ask the user to choose
 - **No events found**: Inform user: "No prediction events found matching your criteria. Try different filters or search terms."
 - **Empty positions**: Inform user: "No open positions found for this wallet. You can browse events to find prediction opportunities."
 - **Insufficient balance**: If balance is too low for a trade, inform the user and suggest depositing funds
 - **Invalid slug**: If event not found, suggest searching events first via `lfi predict events --search <keyword>`
 - **Polymarket auth missing**: If POLY_* flags are missing for Polymarket operations, list all required flags and ask the user to provide them
 - **Invalid JSON in --body or --order-context**: If JSON parsing fails, show the parse error and ask the user to correct the JSON
-- **Quote expired**: DFlow quotes have limited validity; if too much time passes, get a new quote
+- **Quote expired**: Kalshi quotes have limited validity; if too much time passes, get a new quote
 - **Network timeout**: Retry once after 3 seconds; if still fails, suggest checking connectivity via `lfi ping --json`
 
 ## Common Pitfalls
 
 | Pitfall | Correct Approach |
 |---------|-----------------|
-| Forgetting `--source` on event detail | Always specify `--source dflow` or `--source polymarket` |
+| Forgetting `--source` on event detail | Always specify `--source kalshi` or `--source polymarket` |
 | Missing POLY_* flags for Polymarket | All five `--poly-*` flags are required for Polymarket orders and order queries |
 | Modifying the quote response before submitting | Pass quote data through as-is in `--order-context` |
 | Submitting without user confirmation | ALWAYS show order/quote summary and wait for explicit "yes" |
@@ -319,7 +319,7 @@ See [security-policy.md](../shared/security-policy.md) for global security rules
 
 Skill-specific rules:
 - **Polymarket CLOB credentials are sensitive** — never log, display, or store POLY_* values beyond the immediate command execution
-- **DFlow transactions involve real funds** — never fabricate or guess signed transaction data
+- **Kalshi transactions involve real funds** — never fabricate or guess signed transaction data
 - NEVER place orders without explicit user confirmation — always show the order summary first
 - The `--order-context` and `--body` fields are opaque — pass them through as-is; do not interpret, modify, or display raw content beyond summarizing key fields (amount, side, market)
 - After order submission, provide the result so the user can independently verify
