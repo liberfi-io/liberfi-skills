@@ -11,6 +11,7 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 | [liberfi-market](skills/liberfi-market/SKILL.md) | Market discovery: trending token rankings, new token listings | [SKILL.md](skills/liberfi-market/SKILL.md) |
 | [liberfi-portfolio](skills/liberfi-portfolio/SKILL.md) | Portfolio analysis: public wallet & own TEE wallet holdings, activity, PnL stats, net worth | [SKILL.md](skills/liberfi-portfolio/SKILL.md) |
 | [liberfi-swap](skills/liberfi-swap/SKILL.md) | Swap & transactions: quotes, TEE wallet trade execution, fee estimation, broadcast | [SKILL.md](skills/liberfi-swap/SKILL.md) |
+| [liberfi-predict](skills/liberfi-predict/SKILL.md) | Prediction markets: events, balances, positions, trades, orders, Kalshi/Polymarket order placement | [SKILL.md](skills/liberfi-predict/SKILL.md) |
 
 ## Capability Matrix
 
@@ -46,6 +47,15 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 | Sign and broadcast swap in one step | liberfi-swap | Yes | Yes | Yes (irreversible) |
 | Estimate transaction fee | liberfi-swap | No | No | No |
 | Broadcast signed transaction | liberfi-swap | Yes | Yes | Yes (irreversible) |
+| List prediction events (Kalshi / Polymarket) | liberfi-predict | No | No | No |
+| Get prediction event detail | liberfi-predict | No | No | No |
+| Check prediction USDC balance | liberfi-predict | No | No | No |
+| View prediction positions | liberfi-predict | No | No | No |
+| List prediction trade history | liberfi-predict | No | No | No |
+| List / inspect prediction orders | liberfi-predict | No (POLY_* for Polymarket) | No | No |
+| Request Kalshi quote | liberfi-predict | No | No | No |
+| Submit signed Kalshi transaction | liberfi-predict | No | Yes | Yes (irreversible) |
+| Create Polymarket order | liberfi-predict | POLY_* headers | Yes | Yes (irreversible) |
 
 ## Getting Started
 
@@ -124,6 +134,12 @@ Check my wallet holdings on Solana: 5ZWj7a1f8tWkjBESHKgrLmXMEo2BTrEZtJhNR6dvVjbG
 
 ```
 Get a swap quote for 1 SOL to USDC on Solana.
+```
+
+### Prediction Markets
+
+```
+Show me trending Kalshi prediction events about Bitcoin.
 ```
 
 ## Supported Chains
