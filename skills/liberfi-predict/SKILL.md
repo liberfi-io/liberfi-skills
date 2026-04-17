@@ -17,8 +17,12 @@ description: >
   预测交易, 预测事件, 浏览预测, 预测报价, 提交预测, 预测持仓.
 
   CRITICAL: Always use `--json` flag for structured output.
-  CRITICAL: Polymarket order creation requires all five POLY_* authentication flags.
-  CRITICAL: Kalshi submit requires a signed transaction — never fabricate signatures.
+  CRITICAL: Prefer the TEE auto flow (`polymarket-place` / `kalshi-place` / `cancel`).
+    Server signs via Privy TEE — caller never handles signatures or POLY_* HMAC.
+    See reference/order-flow.md for the canonical flow and decision tree.
+  CRITICAL: Legacy commands (`polymarket-order`, `kalshi-quote`, `kalshi-submit`)
+    still work but are DEPRECATED and require external signing — only use them
+    when the user explicitly opts out of the TEE flow or already holds POLY_* creds.
   CRITICAL: NEVER execute orders without explicit user confirmation.
 
   Do NOT use this skill for:
@@ -39,9 +43,19 @@ allowed-commands:
   - "lfi predict trades"
   - "lfi predict orders"
   - "lfi predict order"
+  - "lfi predict polymarket-tick-size"
+  - "lfi predict polymarket-fee-rate"
+  - "lfi predict polymarket-setup-status"
+  - "lfi predict polymarket-setup"
+  - "lfi predict polymarket-deposit-addresses"
+  - "lfi predict polymarket-place"
+  - "lfi predict kalshi-place"
+  - "lfi predict cancel"
   - "lfi predict kalshi-quote"
   - "lfi predict kalshi-submit"
   - "lfi predict polymarket-order"
+  - "lfi status"
+  - "lfi login"
   - "lfi ping"
 metadata:
   author: liberfi
@@ -69,11 +83,56 @@ This skill's auth requirements:
 | `lfi predict trades` | No |
 | `lfi predict orders` | No (Polymarket needs POLY_* headers) |
 | `lfi predict order <id>` | No (Polymarket needs POLY_* headers) |
-| `lfi predict kalshi-quote` | No |
-| `lfi predict kalshi-submit` | No |
-| `lfi predict polymarket-order` | No (requires POLY_* headers) |
+| `lfi predict polymarket-tick-size` | No |
+| `lfi predict polymarket-fee-rate` | No |
+| `lfi predict polymarket-setup-status` | No (uses TEE wallet if logged in) |
+| `lfi predict polymarket-deposit-addresses` | No |
+| `lfi predict polymarket-setup` | **Yes** (LiberFi JWT) |
+| `lfi predict polymarket-place` | **Yes** (LiberFi JWT — server signs via TEE) |
+| `lfi predict kalshi-place` | **Yes** (LiberFi JWT — server signs via TEE) |
+| `lfi predict cancel` | **Yes** (LiberFi JWT — auto L2 auth for polymarket) |
+| `lfi predict kalshi-quote` (DEPRECATED) | No |
+| `lfi predict kalshi-submit` (DEPRECATED) | No |
+| `lfi predict polymarket-order` (DEPRECATED) | No (requires POLY_* headers) |
 
-**Polymarket authentication**: Polymarket order operations require CLOB HMAC authentication via five `--poly-*` flags. These are NOT LiberFi JWT credentials — they are the user's own Polymarket CLOB API credentials.
+**Recommended flow (TEE auto)**: `polymarket-setup` → `polymarket-place` /
+`kalshi-place` / `cancel`. The server holds the user's TEE wallet via Privy
+and signs every transaction internally — no POLY_* HMAC, no Solana signing,
+no EIP-712 work for the caller.
+
+**Legacy flow**: Polymarket order operations via `polymarket-order` require
+CLOB HMAC authentication via five `--poly-*` flags. These are NOT LiberFi
+JWT credentials — they are the user's own Polymarket CLOB API credentials.
+
+## TEE Auto Order Flow (CRITICAL)
+
+For the canonical end-to-end order placement flow — including pre-flight
+status checks, deposit handling, market vs limit order branching, and post-
+order verification — see [reference/order-flow.md](reference/order-flow.md).
+
+The CLI/skill expects this exact ordering for Polymarket:
+
+1. `lfi status` — confirm authenticated; if not, run `lfi login key`
+2. `lfi predict polymarket-setup-status --json` — check Safe deployment +
+   token approvals
+3. If `safe_deployed=false` or any approval missing: `lfi predict
+   polymarket-setup --json` (one-shot; gasless via Builder Relayer)
+4. `lfi predict polymarket-deposit-addresses --safe-address <safe> --json`
+   — if Safe USDC balance < $2 USD, return the deposit address and ask
+   the user to fund the Safe (≥ $2 USDC on Polygon recommended)
+5. Ask the user: market or limit? For limit, also ask price + size + GTC
+   vs GTD (with expiration if GTD). For market, ask USDC spend (BUY) or
+   share count (SELL)
+6. Show the final order summary, wait for explicit confirmation
+7. `lfi predict polymarket-place --token-id <id> --side <s> --order-type
+   <t> [--price <p>] [--size <sz>] [--expiration <epoch>] --json`
+8. `lfi predict orders --source polymarket --json` — verify open orders
+9. `lfi predict cancel <id> --source polymarket --json` — cancel if user
+   asks
+
+For Kalshi the flow is shorter: `lfi predict kalshi-place --input-mint
+<inMint> --output-mint <outMint> --amount <amt> --json` — quote, sign
+(SignSOL), and submit are all done server-side.
 
 ## Skill Routing
 
@@ -102,13 +161,26 @@ This skill's auth requirements:
 | `lfi predict orders` | List orders | No (POLY_* for Polymarket) |
 | `lfi predict order <id> --source <s>` | Get order details | No (POLY_* for Polymarket) |
 
-### Mutating Commands
+### TEE Auto Flow Commands (recommended)
 
 | Command | Description | Auth |
 |---------|-------------|------|
-| `lfi predict kalshi-quote --input-mint <m> --output-mint <m> --amount <a> --user-public-key <k>` | Request Kalshi quote | No |
-| `lfi predict kalshi-submit --signed-transaction <tx> --order-context '<json>'` | Submit signed Kalshi transaction | No |
-| `lfi predict polymarket-order --body '<json>' --poly-api-key <k> --poly-address <a> --poly-signature <s> --poly-passphrase <p> --poly-timestamp <t>` | Create Polymarket order | POLY_* headers |
+| `lfi predict polymarket-tick-size --token-id <id>` | Min tick size for a token | No |
+| `lfi predict polymarket-fee-rate --token-id <id>` | Base fee rate (bps) | No |
+| `lfi predict polymarket-setup-status [--wallet-address <addr>]` | Safe deployment + approval status | No (uses TEE wallet if logged in) |
+| `lfi predict polymarket-setup` | Deploy Safe + approve all tokens (gasless) | **JWT** |
+| `lfi predict polymarket-deposit-addresses --safe-address <addr>` | Multi-chain deposit addresses for Safe | No |
+| `lfi predict polymarket-place --token-id <id> --side BUY\|SELL --order-type GTC\|GTD\|FOK\|FAK\|MARKET [--price <p>] [--size <sz>] [--expiration <epoch>] [...]` | Prepare → TEE sign → execute Polymarket order | **JWT** |
+| `lfi predict kalshi-place --input-mint <m> --output-mint <m> --amount <a> [--slippage-bps <bps>]` | Quote → SignSOL → submit Kalshi order | **JWT** |
+| `lfi predict cancel <id> --source polymarket\|kalshi` | Cancel order (auto L2 auth for poly) | **JWT** |
+
+### Legacy / Deprecated Commands
+
+| Command | Description | Auth |
+|---------|-------------|------|
+| `lfi predict kalshi-quote --input-mint <m> --output-mint <m> --amount <a> --user-public-key <k>` | **DEPRECATED** — use `kalshi-place`. Request Kalshi quote | No |
+| `lfi predict kalshi-submit --signed-transaction <tx> --order-context '<json>'` | **DEPRECATED** — use `kalshi-place`. Submit pre-signed Kalshi tx | No |
+| `lfi predict polymarket-order --body '<json>' --poly-api-key <k> --poly-address <a> --poly-signature <s> --poly-passphrase <p> --poly-timestamp <t>` | **DEPRECATED** — use `polymarket-place`. Create Polymarket order with caller-managed POLY_* headers | POLY_* headers |
 
 ### Parameter Reference
 
@@ -155,6 +227,43 @@ This skill's auth requirements:
 - `<id>` — **Required**. Order ID
 - `--source <source>` — **Required**. Provider source
 - Same `--poly-*` flags as orders list
+
+**Polymarket tick size** (`lfi predict polymarket-tick-size`):
+- `--token-id <id>` — **Required**. Polymarket CLOB token ID
+
+**Polymarket fee rate** (`lfi predict polymarket-fee-rate`):
+- `--token-id <id>` — **Required**. Polymarket CLOB token ID
+
+**Polymarket setup status** (`lfi predict polymarket-setup-status`):
+- `--wallet-address <addr>` — Optional EVM address. Defaults to caller's TEE wallet when authenticated.
+
+**Polymarket setup (run)** (`lfi predict polymarket-setup`):
+- No flags. Requires authentication. Idempotent — safe to call repeatedly.
+
+**Polymarket deposit addresses** (`lfi predict polymarket-deposit-addresses`):
+- `--safe-address <addr>` — **Required**. Safe wallet address (from `polymarket-setup-status`)
+
+**Polymarket place (TEE auto)** (`lfi predict polymarket-place`):
+- `--token-id <id>` — **Required**. Polymarket CLOB token ID
+- `--side BUY|SELL` — **Required**.
+- `--order-type GTC|GTD|FOK|FAK|MARKET` — **Required**.
+- `--price <p>` — Limit price (limit orders only, e.g. `0.55`). Required for GTC/GTD/FOK/FAK.
+- `--size <sz>` — Limit: shares; market BUY: USDC; market SELL: shares. Required for limit and market.
+- `--expiration <epochSec>` — Required for `GTD`.
+- `--neg-risk true|false` — Force NegRisk exchange. Auto-detected when omitted.
+- `--fee-rate-bps <n>` — Override fee rate (PS auto-resolves when omitted).
+- `--tick-size <n>` — Override tick size (PS auto-resolves when omitted).
+- `--taker-address <addr>` — Restrict the taker (advanced).
+
+**Kalshi place (TEE auto)** (`lfi predict kalshi-place`):
+- `--input-mint <addr>` — **Required**. Input token mint
+- `--output-mint <addr>` — **Required**. Output token mint
+- `--amount <amt>` — **Required**. Amount in smallest unit
+- `--slippage-bps <bps>` — Slippage tolerance in basis points
+
+**Cancel order** (`lfi predict cancel <id>`):
+- `<id>` — **Required**. Order ID
+- `--source polymarket|kalshi` — **Required**. For polymarket the L2 HMAC headers are derived from the caller's TEE wallet automatically.
 
 **Kalshi quote** (`lfi predict kalshi-quote`):
 - `--input-mint <address>` — **Required**. Input token mint address
