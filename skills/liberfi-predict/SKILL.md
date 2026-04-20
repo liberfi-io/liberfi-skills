@@ -110,7 +110,7 @@ allowed-commands:
   - "lfi ping"
 metadata:
   author: liberfi
-  version: "0.1.0"
+  version: "0.1.1"
   homepage: "https://liberfi.io"
   cli: ">=0.1.0"
 ---
