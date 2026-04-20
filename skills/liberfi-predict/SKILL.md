@@ -43,9 +43,19 @@ description: >
     Run this exact sequence: (1) `lfi status --json`, (2) if not authed,
     `lfi login key --role AGENT --name "OpenClawAgent" --json`, (3)
     `lfi whoami --json` to get `evmAddress` (Polymarket) and `solAddress`
-    (Kalshi), (4) call `lfi predict positions|trades|balance` with the
-    resolved address. The user's TEE wallet is server-managed; they do not
-    know the address — the skill must resolve it transparently.
+    (Kalshi), (4) pass that address DIRECTLY to `lfi predict
+    positions|trades|balance --user|--wallet <evmAddress|solAddress>`. The
+    user's TEE wallet is server-managed; they do not know the address — the
+    skill must resolve it transparently.
+  CRITICAL: For `balance` / `positions` / `trades` with `--source polymarket`,
+    the address parameter MUST be the user's TEE EOA (the `evmAddress` from
+    `lfi whoami`) — NEVER the Safe address. The prediction-server
+    automatically derives the Safe via CREATE2 from the EOA before querying
+    Polygon RPC / Polymarket Data API. Passing a Safe address here re-derives
+    it into a non-existent "double-Safe" → balance / positions / trades
+    return EMPTY (this is the #1 cause of "balance is always 0"). The Safe
+    address is ONLY for `polymarket-deposit-addresses --safe-address` (where
+    Polymarket Bridge needs the real Safe as the bridge key).
   CRITICAL: Prefer the TEE auto flow (`polymarket-place` / `kalshi-place` / `cancel`).
     Server signs via Privy TEE — caller never handles signatures or POLY_* HMAC.
     See reference/order-flow.md for the canonical flow and decision tree.
@@ -158,8 +168,10 @@ The CLI/skill expects this exact ordering for Polymarket:
    token approvals
 3. If `safe_deployed=false` or any approval missing: `lfi predict
    polymarket-setup --json` (one-shot; gasless via Builder Relayer)
-4. Check Safe USDC balance: `lfi predict balance --source polymarket --user <safe> --json`.
-   If < $2 USDC, fetch BRIDGE deposit addresses (NOT the Safe address):
+4. Check Safe USDC balance — **pass the TEE EOA, NOT the Safe**:
+   `lfi predict balance --source polymarket --user <tee-eoa> --json`
+   (server derives Safe from EOA internally). If `balance < 2`, fetch
+   BRIDGE deposit addresses using the **Safe** address from step 2/3:
    `lfi predict polymarket-deposit-addresses --safe-address <safe> --json`
    → returns `{ evm, svm, btc, tron }`. Pick the field matching the user's
    chain (default `evm` for ETH/Polygon/Base/Arb/Op/BNB). Tell user to send
@@ -247,14 +259,14 @@ For Kalshi the flow is shorter: `lfi predict kalshi-place --input-mint
 
 **Balance** (`lfi predict balance`):
 - `--source <source>` — **Required**. Provider source: `kalshi` or `polymarket`
-- `--user <address>` — **Required**. User wallet address
+- `--user <address>` — **Required**. For `polymarket`: pass the user's **TEE EOA** (e.g. `evmAddress` from `lfi whoami`); the server auto-derives the Safe via CREATE2. NEVER pass a Safe address here. For `kalshi`: pass the Solana public key (`solAddress`).
 
 **Positions** (`lfi predict positions`):
-- `--user <address>` — **Required**. User wallet address
+- `--user <address>` — **Required**. Same rule as `balance`: TEE EOA for polymarket (server derives Safe), Solana public key for kalshi.
 - `--source <source>` — Optional provider source filter
 
 **Trades** (`lfi predict trades`):
-- `--wallet <address>` — **Required**. Wallet address
+- `--wallet <address>` — **Required**. Same rule as `balance`: TEE EOA for polymarket (server derives Safe), Solana public key for kalshi.
 - `--source <source>` — Optional provider source filter
 - `--limit <n>` — Max results per page
 - `--cursor <cursor>` — Pagination cursor
@@ -429,10 +441,12 @@ user to type their wallet address.
    - If the user named "Polymarket" → use `evmAddress` only.
    - If the user named "Kalshi" → use `solAddress` only.
    - If neither was named (e.g. "我在预测市场赚了多少") → query BOTH and merge.
-5. **Run the matching query** for each source:
-   - Positions: `lfi predict positions --user <addr> [--source <s>] --json`
-   - Trades: `lfi predict trades --wallet <addr> [--source <s>] --limit 50 --json`
-   - Balance: `lfi predict balance --source <s> --user <addr> --json`
+5. **Run the matching query** for each source — pass the TEE EOA / SOL pubkey
+   from step 3 DIRECTLY. NEVER convert to a Safe address first; the server
+   does that internally for Polymarket.
+   - Positions: `lfi predict positions --user <evmAddress|solAddress> [--source <s>] --json`
+   - Trades: `lfi predict trades --wallet <evmAddress|solAddress> [--source <s>] --limit 50 --json`
+   - Balance: `lfi predict balance --source <s> --user <evmAddress|solAddress> --json`
 6. **Present** a single consolidated answer that names the source(s) used and,
    for the "我赚了多少" / PnL question, sums realized + unrealized PnL across
    the returned trades/positions.
@@ -442,6 +456,15 @@ in the CLI, but a normal user does NOT know their TEE wallet address — the
 LiberFi server holds it. The skill must resolve "我" → TEE wallet via
 `whoami`, transparently. The user should never have to type or even see the
 hex/Base58 address unless they ask.
+
+**EOA vs Safe — critical distinction for Polymarket**: The address from
+`whoami.evmAddress` is the user's TEE EOA. For `balance` / `positions` /
+`trades` queries, ALWAYS pass the EOA — the prediction-server derives the
+Polymarket Safe via CREATE2 internally. The Safe address (returned by
+`polymarket-setup-status`) is ONLY for `polymarket-deposit-addresses
+--safe-address` (Polymarket Bridge requires the actual Safe as bridge key).
+Mixing these up → balance / positions / trades return EMPTY because the
+server tries to derive a Safe from an already-Safe address.
 
 ### Check Order Status
 

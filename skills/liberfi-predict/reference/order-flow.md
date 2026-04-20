@@ -59,16 +59,37 @@ re-fetch `polymarket-setup-status` and confirm everything is `true`.
 
 ### Step 3 — Funding check
 
+First resolve the user's TEE EOA (skip if you already have it):
+
 ```bash
-lfi predict balance --source polymarket --user <safe_address> --json
+lfi whoami --json   # → evmAddress = TEE EOA
 ```
 
-This is the actual USDC balance held by the Safe on Polygon and used by
-the CLOB. **Recommend a minimum of $2 USDC.** If sufficient, skip the
+Then query the balance — **pass the TEE EOA, NOT the Safe address**:
+
+```bash
+lfi predict balance --source polymarket --user <tee_eoa> --json
+```
+
+> **Why EOA, not Safe?** The prediction-server's Polymarket balance /
+> positions / trades handlers expect the user's EOA and internally derive
+> the corresponding Safe via CREATE2 before querying Polygon RPC and the
+> Polymarket Data API. If you pass the Safe address here, the server
+> derives a Safe *from a Safe* → a non-existent "double-Safe" → balance /
+> positions / trades return EMPTY. This is the #1 cause of "balance is
+> always 0". The Safe address is ONLY used in Step 3b below
+> (`polymarket-deposit-addresses`), where the Polymarket Bridge needs
+> the actual Safe as its bridge key.
+
+This returns the actual USDC balance held by the Safe on Polygon and used
+by the CLOB. **Recommend a minimum of $2 USDC.** If sufficient, skip the
 deposit step and go to Step 4.
 
-If insufficient, fetch the **bridge deposit addresses** (NOT the Safe
-address — see CRITICAL note below):
+### Step 3b — Bridge deposit addresses (only if balance insufficient)
+
+If insufficient, fetch the **bridge deposit addresses**. This is the ONLY
+call where you pass the Safe address (the bridge keys its multi-chain
+deposit accounts by Safe):
 
 ```bash
 lfi predict polymarket-deposit-addresses --safe-address <safe_address> --json
@@ -117,8 +138,9 @@ Tell the user (substituting the actual values):
 > 请转入至少 $2 USDC(或等值 USDT)。Polymarket Bridge 会自动把资金转到
 > 你的 Safe 钱包。到账后我会自动重新检查余额。
 
-Then loop on `lfi predict balance --source polymarket --user <safe_address> --json`
-until the balance reflects the deposit, before proceeding to Step 4.
+Then loop on `lfi predict balance --source polymarket --user <tee_eoa> --json`
+(EOA, not Safe — see Step 3 note) until the balance reflects the deposit,
+before proceeding to Step 4.
 
 > Note for already-on-Polygon power users: technically, sending Polygon
 > USDC.e directly to the Safe address works because the Safe owns it.
@@ -249,7 +271,8 @@ lfi predict trades --wallet <userSolAddr> --source kalshi --json
 | Pitfall | Correct approach |
 |---|---|
 | Calling `polymarket-place` without setup | Always run `polymarket-setup-status` first; auto-run `polymarket-setup` if not ready |
-| **Telling the user to send funds to the Safe address** | NEVER. The Safe is Polymarket's internal custody contract, not a deposit target. Always call `polymarket-deposit-addresses` and surface one of its bridge addresses (`evm`/`svm`/`btc`/`tron`). |
+| **Passing the Safe address to `balance` / `positions` / `trades`** | NEVER. Pass the TEE EOA (`evmAddress` from `lfi whoami`) — the prediction-server derives the Safe via CREATE2 internally. Passing the Safe directly causes the server to derive a "Safe of a Safe" and the query returns EMPTY (balance always 0, positions empty, trades empty). |
+| **Telling the user to send funds to the Safe address** | NEVER. The Safe is Polymarket's internal custody contract, not a deposit target. Always call `polymarket-deposit-addresses --safe-address <safe>` (Safe is correct here — it's the bridge key) and surface one of its bridge addresses (`evm`/`svm`/`btc`/`tron`). |
 | Ignoring the funding check | Tell the user to deposit ≥ $2 USDC to the **bridge address** (NOT the Safe) before placing the first order |
 | Skipping confirmation | NEVER call any `*-place` command without explicit user confirmation |
 | Mixing TEE flow with `--poly-*` flags | The TEE `polymarket-place` does not accept POLY_* — those are only for the deprecated `polymarket-order` |
