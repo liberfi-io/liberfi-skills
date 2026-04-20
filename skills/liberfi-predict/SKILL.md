@@ -37,6 +37,15 @@ description: >
     package does not exist — if install fails, the cause is always a registry
     mirror; retry with `--registry https://registry.npmjs.org/`.
   CRITICAL: Always use `--json` flag for structured output.
+  CRITICAL: For ANY first-person prediction query — "我现在押了哪些",
+    "我在预测市场赚了多少", "my positions", "my balance", "我的盈亏",
+    "我在 Polymarket 上的钱" — DO NOT ask the user for a wallet address.
+    Run this exact sequence: (1) `lfi status --json`, (2) if not authed,
+    `lfi login key --role AGENT --name "OpenClawAgent" --json`, (3)
+    `lfi whoami --json` to get `evmAddress` (Polymarket) and `solAddress`
+    (Kalshi), (4) call `lfi predict positions|trades|balance` with the
+    resolved address. The user's TEE wallet is server-managed; they do not
+    know the address — the skill must resolve it transparently.
   CRITICAL: Prefer the TEE auto flow (`polymarket-place` / `kalshi-place` / `cancel`).
     Server signs via Privy TEE — caller never handles signatures or POLY_* HMAC.
     See reference/order-flow.md for the canonical flow and decision tree.
@@ -48,7 +57,9 @@ description: >
   Do NOT use this skill for:
   - Token search, price, details, security audit, K-line → use liberfi-token
   - Trending token rankings or new token discovery → use liberfi-market
-  - Wallet holdings, activity, or PnL stats → use liberfi-portfolio
+  - Crypto wallet holdings / on-chain PnL (NOT prediction-market PnL) →
+    use liberfi-portfolio. Note: "我在预测市场赚了多少" / "我的预测仓位"
+    belong HERE, not in liberfi-portfolio.
   - Swap quotes, trade execution, or transaction broadcast → use liberfi-swap
   - Authentication (login, logout, session) → use liberfi-auth
 
@@ -76,6 +87,7 @@ allowed-commands:
   - "lfi predict polymarket-order"
   - "lfi status"
   - "lfi login"
+  - "lfi whoami"
   - "lfi ping"
 metadata:
   author: liberfi
@@ -328,6 +340,12 @@ For Kalshi the flow is shorter: `lfi predict kalshi-place --input-mint
 
 ### Check USDC Balance
 
+**If the user says "我的余额", "my balance", "我在 Polymarket/Kalshi 有多少钱"
+or any first-person variant — DO NOT ask for a wallet address. Use the
+"My ..." auto-flow below.**
+
+Generic flow (when the user explicitly provides someone else's address):
+
 1. **Collect inputs**: Source (kalshi/polymarket) and wallet address
 2. **Fetch**: `lfi predict balance --source <source> --user <address> --json`
 3. **Present**: Available USDC balance
@@ -357,6 +375,12 @@ For Kalshi the flow is shorter: `lfi predict kalshi-place --input-mint
 
 ### View Positions
 
+**If the user says "我的持仓", "我现在押了哪些", "my positions", "我赌了什么"
+or any first-person variant — DO NOT ask for a wallet address. Use the
+"My ..." auto-flow below.**
+
+Generic flow (when the user explicitly provides someone else's address):
+
 1. **Determine user**: Get wallet address from user
 2. **Fetch**: `lfi predict positions --user <address> --json`
 3. **Present**: Show event/market, outcome, size, entry price, current value
@@ -364,10 +388,46 @@ For Kalshi the flow is shorter: `lfi predict kalshi-place --input-mint
 
 ### View Trade History
 
+**If the user says "我的交易", "我赚了多少", "我亏了多少", "my trades",
+"我的盈亏" or any first-person variant — DO NOT ask for a wallet address.
+Use the "My ..." auto-flow below.**
+
+Generic flow (when the user explicitly provides someone else's address):
+
 1. **Determine wallet**: Get wallet address from user
 2. **Fetch**: `lfi predict trades --wallet <address> --limit 20 --json`
 3. **Present**: Show trade timestamp, event/market, side, price, size
 4. **Suggest next step**: "Want to check your current positions?" / "需要查看当前持仓？"
+
+### "My ..." auto-flow (CRITICAL — covers "我的", "my", "我自己")
+
+Whenever the user asks about THEIR OWN prediction-market data — positions,
+trades, balance, PnL, "我现在押了哪些", "我在预测市场赚了多少",
+"我在 Polymarket 上的钱", etc. — run this exact sequence. NEVER ask the
+user to type their wallet address.
+
+1. **Check session**: `lfi status --json`
+2. **If not authenticated** (or `expired: true`):
+   `lfi login key --role AGENT --name "OpenClawAgent" --json`
+3. **Fetch TEE wallet addresses**: `lfi whoami --json`
+   → returns `evmAddress` (use for Polymarket) and `solAddress` (use for Kalshi).
+4. **Determine source(s)**:
+   - If the user named "Polymarket" → use `evmAddress` only.
+   - If the user named "Kalshi" → use `solAddress` only.
+   - If neither was named (e.g. "我在预测市场赚了多少") → query BOTH and merge.
+5. **Run the matching query** for each source:
+   - Positions: `lfi predict positions --user <addr> [--source <s>] --json`
+   - Trades: `lfi predict trades --wallet <addr> [--source <s>] --limit 50 --json`
+   - Balance: `lfi predict balance --source <s> --user <addr> --json`
+6. **Present** a single consolidated answer that names the source(s) used and,
+   for the "我赚了多少" / PnL question, sums realized + unrealized PnL across
+   the returned trades/positions.
+
+Why this is mandatory: prediction queries always require an address parameter
+in the CLI, but a normal user does NOT know their TEE wallet address — the
+LiberFi server holds it. The skill must resolve "我" → TEE wallet via
+`whoami`, transparently. The user should never have to type or even see the
+hex/Base58 address unless they ask.
 
 ### Check Order Status
 
