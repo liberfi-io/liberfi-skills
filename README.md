@@ -59,50 +59,49 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 
 ## Getting Started
 
-### 1. Prerequisites
+### Quick Install (recommended)
 
-Install the LiberFi CLI:
-
-```bash
-npm install -g @liberfi.io/cli
-```
-
-Verify installation:
+One command installs the CLI and every skill into every detected agent
+(Cursor, Claude Code, Codex, …):
 
 ```bash
-liberfi --version
-liberfi ping --json
+curl -fsSL https://raw.githubusercontent.com/liberfi-io/liberfi-skills/main/scripts/install.sh | bash
 ```
 
-### 2. Install Skills
-
-#### Via Agent (recommended)
-
-Send this to your AI agent:
-
-```
-npx skills add liberfi-io/liberfi-skills
-```
-
-#### Manual installation
+The installer is idempotent — re-run it anytime to upgrade.
+Pass `--agents <list>` to target specific agents:
 
 ```bash
-npx skills add liberfi-io/liberfi-skills
+curl -fsSL https://raw.githubusercontent.com/liberfi-io/liberfi-skills/main/scripts/install.sh \
+  | bash -s -- --agents cursor,claude-code
 ```
 
-Install to specific agents:
+Other flags: `--skip-cli`, `--skip-skills`, `--skip-ping`. Run with
+`--help` for the full reference.
 
-```bash
-npx skills add liberfi-io/liberfi-skills -a cursor -a claude-code
-```
+### Manual install (if you prefer step-by-step)
 
-Install all skills:
+1. Install the CLI:
 
-```bash
-npx skills add liberfi-io/liberfi-skills --all
-```
+   ```bash
+   npm install -g @liberfi.io/cli
+   liberfi --version
+   liberfi ping --json
+   ```
 
-### 3. Verify
+2. Install all skills into every detected agent:
+
+   ```bash
+   npx skills add liberfi-io/liberfi-skills --all
+   ```
+
+   Or target specific agents:
+
+   ```bash
+   npx skills add liberfi-io/liberfi-skills --skill '*' -a cursor -a claude-code -y
+   ```
+
+### Verify
 
 Test with a simple query — send this to your AI agent:
 
@@ -190,15 +189,20 @@ Skills share common configurations in [`skills/shared/`](skills/shared/):
 
 Any AI agent that can **read files + run CLI commands** should work with these skills.
 
+All commands install every skill non-interactively (`--skill '*' -y`):
+
 | Platform | How to Use |
 |----------|-----------|
-| Cursor | `npx skills add liberfi-io/liberfi-skills -a cursor` |
-| Claude Code | `npx skills add liberfi-io/liberfi-skills -a claude-code` |
-| Codex | `npx skills add liberfi-io/liberfi-skills -a codex` |
-| OpenClaw | `npx skills add liberfi-io/liberfi-skills -a openclaw` |
-| Cline | `npx skills add liberfi-io/liberfi-skills -a cline` |
-| Windsurf | `npx skills add liberfi-io/liberfi-skills -a windsurf` |
-| OpenCode | `npx skills add liberfi-io/liberfi-skills -a opencode` |
+| Cursor | `npx skills add liberfi-io/liberfi-skills --skill '*' -a cursor -y` |
+| Claude Code | `npx skills add liberfi-io/liberfi-skills --skill '*' -a claude-code -y` |
+| Codex | `npx skills add liberfi-io/liberfi-skills --skill '*' -a codex -y` |
+| OpenClaw | `npx skills add liberfi-io/liberfi-skills --skill '*' -a openclaw -y` |
+| Cline | `npx skills add liberfi-io/liberfi-skills --skill '*' -a cline -y` |
+| Windsurf | `npx skills add liberfi-io/liberfi-skills --skill '*' -a windsurf -y` |
+| OpenCode | `npx skills add liberfi-io/liberfi-skills --skill '*' -a opencode -y` |
+
+Or use the [Quick Install](#quick-install-recommended) script with
+`--agents <list>` to do the same in one line.
 
 See [vercel-labs/skills](https://github.com/vercel-labs/skills) for the full list of supported agents.
 
