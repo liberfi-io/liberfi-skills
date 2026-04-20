@@ -49,6 +49,15 @@ description: >
   CRITICAL: Prefer the TEE auto flow (`polymarket-place` / `kalshi-place` / `cancel`).
     Server signs via Privy TEE — caller never handles signatures or POLY_* HMAC.
     See reference/order-flow.md for the canonical flow and decision tree.
+  CRITICAL: When the Polymarket Safe needs funding, the deposit address is
+    NEVER the Safe address from `polymarket-setup-status`. ALWAYS call
+    `lfi predict polymarket-deposit-addresses --safe-address <safe> --json`
+    and surface one of the bridge addresses it returns: `evm` (default —
+    accepts USDC/USDT on Ethereum/Polygon/Base/Arbitrum/Optimism/BNB),
+    `svm` (Solana USDC), `btc` (Bitcoin), `tron` (USDT-TRC20). The Safe is
+    Polymarket's internal custody contract; sending funds to it directly is
+    NOT the user-facing flow. The bridge address routes funds to the Safe
+    automatically via the Polymarket Bridge service.
   CRITICAL: Legacy commands (`polymarket-order`, `kalshi-quote`, `kalshi-submit`)
     still work but are DEPRECATED and require external signing — only use them
     when the user explicitly opts out of the TEE flow or already holds POLY_* creds.
@@ -149,9 +158,14 @@ The CLI/skill expects this exact ordering for Polymarket:
    token approvals
 3. If `safe_deployed=false` or any approval missing: `lfi predict
    polymarket-setup --json` (one-shot; gasless via Builder Relayer)
-4. `lfi predict polymarket-deposit-addresses --safe-address <safe> --json`
-   — if Safe USDC balance < $2 USD, return the deposit address and ask
-   the user to fund the Safe (≥ $2 USDC on Polygon recommended)
+4. Check Safe USDC balance: `lfi predict balance --source polymarket --user <safe> --json`.
+   If < $2 USDC, fetch BRIDGE deposit addresses (NOT the Safe address):
+   `lfi predict polymarket-deposit-addresses --safe-address <safe> --json`
+   → returns `{ evm, svm, btc, tron }`. Pick the field matching the user's
+   chain (default `evm` for ETH/Polygon/Base/Arb/Op/BNB). Tell user to send
+   ≥ $2 USDC to that bridge address (NEVER to the Safe address — the Safe
+   is Polymarket's internal custody contract, not a user-facing deposit
+   target). The Polymarket Bridge service auto-credits the Safe.
 5. Ask the user: market or limit? For limit, also ask price + size + GTC
    vs GTD (with expiration if GTD). For market, ask USDC spend (BUY) or
    share count (SELL)
