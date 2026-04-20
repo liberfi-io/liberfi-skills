@@ -42,6 +42,9 @@ description: >
   - Trending tokens or new token rankings → use liberfi-market
   - Swap quotes, trade execution, or transaction broadcast → use liberfi-swap
   - Token holder analysis (for a specific token) → use liberfi-token
+  - Prediction-market positions, balances, trades, or orders on Polymarket /
+    Kalshi → use liberfi-predict (e.g. "我在 Polymarket 上押了什么" or
+    "查我 Kalshi 的余额" are prediction queries, not crypto-wallet queries)
 
   Do NOT activate on vague inputs like "wallet" alone without a wallet address
   or clear intent to check portfolio data.

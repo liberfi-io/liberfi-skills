@@ -31,6 +31,10 @@ description: >
   - Specific token details, security audit, holders, or K-line → use liberfi-token
   - Wallet holdings or portfolio analysis → use liberfi-portfolio
   - Swap quotes, trading, or transaction execution → use liberfi-swap
+  - ANY query mentioning "Polymarket" or "Kalshi" → use liberfi-predict.
+    "Polymarket" / "Kalshi" are prediction-market brand names; despite
+    containing the word "market", they have NOTHING to do with token rankings
+    or trending tokens.
 
   Do NOT activate on vague inputs like "market" alone without context indicating
   the user wants rankings or new token discovery.

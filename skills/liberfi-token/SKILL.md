@@ -35,6 +35,11 @@ description: >
   - Wallet holdings, activity, or PnL stats → use liberfi-portfolio
   - Swap quotes, trade execution, or transaction broadcast → use liberfi-swap
   - General market trends without a specific token → use liberfi-market
+  - ANY query mentioning "Polymarket" or "Kalshi" → use liberfi-predict, even
+    if the query also names a token (e.g. "Polymarket 上有什么关于比特币的预测"
+    is a PREDICTION query about Bitcoin, not a token-price query)
+  - Phrasing like "will X happen", "odds of", "概率", "赔率", "押注" → use
+    liberfi-predict
 
   Do NOT activate on vague single-word inputs like "token" or "coin" without
   additional context specifying a search query, chain, or address.

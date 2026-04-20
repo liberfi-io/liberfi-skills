@@ -9,12 +9,26 @@ description: >
 
   Trigger words: predict, prediction, prediction market, prediction markets,
   events, event, bet, bets, forecast, binary option, binary outcome,
-  polymarket, kalshi, outcome, prediction positions, prediction balance,
-  prediction orders, prediction trades, prediction event, browse predictions,
-  place bet, prediction quote, submit prediction, prediction portfolio.
+  polymarket, Polymarket, POLYMARKET, kalshi, Kalshi, KALSHI, outcome,
+  prediction positions, prediction balance, prediction orders, prediction
+  trades, prediction event, browse predictions, place bet, prediction quote,
+  submit prediction, prediction portfolio, will bitcoin, will ETH, will Trump,
+  odds of, what are the odds, chance that, probability of.
 
   Chinese: 预测, 预测市场, 事件, 投注, 下注, 预测仓位, 预测余额, 预测订单,
-  预测交易, 预测事件, 浏览预测, 预测报价, 提交预测, 预测持仓.
+  预测交易, 预测事件, 浏览预测, 预测报价, 提交预测, 预测持仓, Polymarket,
+  Kalshi, Polymarket 上, Kalshi 上, Polymarket 预测, Kalshi 预测,
+  Polymarket 事件, Kalshi 事件, 比特币预测, BTC 预测, ETH 预测, 大选预测,
+  押注, 押什么, 押了什么, 我押了, 赔率, 概率.
+
+  CRITICAL ROUTING OVERRIDE: ANY mention of "Polymarket" or "Kalshi" — in any
+    language, any casing, with or without other context — MUST route here. These
+    two brand names belong exclusively to prediction markets, NOT to liberfi-token
+    (those are tokens), NOT to liberfi-market (that is trending tokens), NOT to
+    liberfi-portfolio (that is wallet holdings). Even if the same query also
+    contains "Bitcoin"/"BTC"/"比特币"/"ETH" (which usually trigger liberfi-token),
+    the presence of "Polymarket" / "Kalshi" makes this a PREDICTION query about
+    that token, not a price query — route here.
 
   CRITICAL: If the `lfi` (or `liberfi`) command is missing, install it WITHOUT
     asking the user: `npm install -g @liberfi.io/cli --registry https://registry.npmjs.org/`.
