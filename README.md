@@ -12,6 +12,7 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 | [liberfi-portfolio](skills/liberfi-portfolio/SKILL.md) | Portfolio analysis: public wallet & own TEE wallet holdings, activity, PnL stats, net worth | [SKILL.md](skills/liberfi-portfolio/SKILL.md) |
 | [liberfi-swap](skills/liberfi-swap/SKILL.md) | Swap & transactions: quotes, TEE wallet trade execution, fee estimation, broadcast | [SKILL.md](skills/liberfi-swap/SKILL.md) |
 | [liberfi-predict](skills/liberfi-predict/SKILL.md) | Prediction markets: events, balances, positions, trades, orders, Kalshi/Polymarket order placement | [SKILL.md](skills/liberfi-predict/SKILL.md) |
+| [liberfi-perpetuals](skills/liberfi-perpetuals/SKILL.md) | Perpetuals: coins, markets, order book, trades, K-lines, positions/orders/fills, signed place/cancel (Hyperliquid MVP) | [SKILL.md](skills/liberfi-perpetuals/SKILL.md) |
 
 ## Capability Matrix
 
@@ -56,6 +57,10 @@ AI Agent skills for the [LiberFi](https://liberfi.io) platform. These skills ena
 | Request Kalshi quote | liberfi-predict | No | No | No |
 | Submit signed Kalshi transaction | liberfi-predict | No | Yes | Yes (irreversible) |
 | Create Polymarket order | liberfi-predict | POLY_* headers | Yes | Yes (irreversible) |
+| List perpetuals coins / markets | liberfi-perpetuals | No | No | No |
+| Perp order book, trades, K-lines | liberfi-perpetuals | No | No | No |
+| Perp user positions / orders / fills | liberfi-perpetuals | No | No | No |
+| Perp place / cancel (prepare → sign → submit) | liberfi-perpetuals | Wallet signature | Yes | Yes (irreversible) |
 
 ## Getting Started
 

@@ -35,6 +35,8 @@ description: >
     "Polymarket" / "Kalshi" are prediction-market brand names; despite
     containing the word "market", they have NOTHING to do with token rankings
     or trending tokens.
+  - Leveraged *perpetual* futures (Hyperliquid-style perps, perp orderbook,
+    perp positions) → use liberfi-perpetuals
 
   Do NOT activate on vague inputs like "market" alone without context indicating
   the user wants rankings or new token discovery.
