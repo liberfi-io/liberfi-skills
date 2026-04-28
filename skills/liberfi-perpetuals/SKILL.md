@@ -8,8 +8,11 @@ description: >
 
   Trigger words: perpetual, perpetuals, perp, perps, futures, future contract,
   leveraged futures, hyperliquid, HL, order book perp, perp positions, perp
-  orders, funding perp, perpetual futures, 永续, 合约, 期货, 杠杆合约,
-  永续合约, 订单簿, 爆仓价, 资金费率 (when clearly about perp venue, not spot).
+  orders, funding perp, perpetual futures, perp deposit, fund perp, deposit
+  to perp, fund hyperliquid, deposit to hyperliquid, perp account funding,
+  topping up perp, 永续, 合约, 期货, 杠杆合约, 永续合约, 订单簿, 爆仓价,
+  资金费率, 入金, 充值合约账户, 永续入金, 给合约账户充钱, 充值 perp
+  (when clearly about perp venue, not spot).
 
   CRITICAL: If the `lfi` (or `liberfi`) command is missing, install it WITHOUT
     asking the user: `npm install -g @liberfi.io/cli --registry https://registry.npmjs.org/`.
@@ -23,6 +26,17 @@ description: >
     it off-CLI, then call `lfi perpetuals order-submit --body '<SignedAction JSON>'`.
   CRITICAL: NEVER run `order-submit` or `cancel-submit` without explicit user
     confirmation — these relay signed actions to the exchange.
+  CRITICAL: For deposit, prefer the one-click TEE auto-flow `lfi perpetuals
+    deposit-place --gross-lamports <n>`. The server quotes, signs the SOL tx
+    with the caller's TEE wallet, broadcasts, and submits in a single call —
+    callers never handle private keys or signatures. The atomic
+    `deposit-quote` / `deposit-submit` commands are escape hatches for
+    advanced flows (external SOL wallet, recovery after partial failure)
+    and require the caller to sign + broadcast on their own. See
+    [reference/deposit-flow.md](reference/deposit-flow.md).
+  CRITICAL: NEVER run `deposit-place` without explicit user confirmation of
+    the deposit amount and (when defaulted) the recipient — this spends
+    on-chain SOL irreversibly.
 
   Do NOT use this skill for:
   - Spot DEX swap quotes or on-chain swap execution → use liberfi-swap
@@ -49,10 +63,16 @@ allowed-commands:
   - "lfi perpetuals order-submit"
   - "lfi perpetuals cancel-prepare"
   - "lfi perpetuals cancel-submit"
+  - "lfi perpetuals deposit-place"
+  - "lfi perpetuals deposit-quote"
+  - "lfi perpetuals deposit-submit"
+  - "lfi perpetuals deposit-status"
   - "lfi ping"
+  - "lfi status"
+  - "lfi whoami"
 metadata:
   author: liberfi
-  version: "0.1.0"
+  version: "0.1.1"
   homepage: "https://liberfi.io"
   cli: ">=0.1.0"
 ---
@@ -67,7 +87,8 @@ See [bootstrap.md](../shared/bootstrap.md) for CLI install and `lfi ping`.
 
 - **Read endpoints** (coins, markets, orderbook, …): no auth.
 - **User-scoped reads** (`positions`, `orders`, `fills`): pass the wallet `address` in the CLI argument (0x).
-- **Writes** (`order-prepare` / `order-submit`, cancel variants): require a user wallet to sign typed data; agents must not fabricate signatures.
+- **Order writes** (`order-prepare` / `order-submit`, cancel variants): require a user wallet to sign typed data; agents must not fabricate signatures.
+- **Deposit (recommended `deposit-place`)**: requires authentication (`lfi status` then `lfi login key`) — the server's TEE wallet signs and broadcasts on the user's behalf. The atomic `deposit-quote` / `deposit-submit` escape hatches do not require auth but the caller is then responsible for signing the SOL tx and broadcasting it themselves.
 
 ## Skill routing
 
@@ -78,6 +99,8 @@ See [bootstrap.md](../shared/bootstrap.md) for CLI install and `lfi ping`.
 | Polymarket / Kalshi | liberfi-predict |
 | Spot token audit, DEX pools for a token | liberfi-token |
 | Perp markets, HL-style orderbook, perp positions | **liberfi-perpetuals** |
+| Funding the perp account (Solana → Hyperliquid via Relay), checking deposit lifecycle | **liberfi-perpetuals** |
+| Spot wallet holdings on a chain (not perp account) | liberfi-portfolio |
 
 ## CLI index
 
@@ -96,8 +119,40 @@ See [bootstrap.md](../shared/bootstrap.md) for CLI install and `lfi ping`.
 | `lfi perpetuals order-submit --body '<json>'` | Submit signed place order |
 | `lfi perpetuals cancel-prepare` | Build typed data for cancel |
 | `lfi perpetuals cancel-submit --body '<json>'` | Submit signed cancel |
+| `lfi perpetuals deposit-place --gross-lamports <n>` | **Recommended**: TEE one-click Solana → Hyperliquid deposit (server quotes, signs, broadcasts, submits). Auth required. |
+| `lfi perpetuals deposit-quote --user-solana-address <a> --hyperliquid-recipient <a> --gross-lamports <n>` | Escape hatch step 1: returns unsigned SOL tx + breakdown. Caller signs + broadcasts within ~30s, then calls `deposit-submit`. |
+| `lfi perpetuals deposit-submit --body '<json>'` | Escape hatch step 2: record the broadcasted SOL tx hash. Idempotent on `solanaTxHash`. |
+| `lfi perpetuals deposit-status <intentId> [--refresh]` | Read deposit lifecycle. `--refresh` bypasses any server-side cache (server-reserved knob; today both endpoints behave identically). |
 
 Common flags: `--provider <name>` (e.g. `hyperliquid`), global `--json`.
+
+## Funding / Deposit (Solana → Hyperliquid via Relay)
+
+The deposit pipeline moves SOL from the user's Solana wallet to the user's
+Hyperliquid perp account via the Relay bridge service. The recommended path
+is the one-click TEE auto-flow:
+
+1. **Authenticate** (only first time): `lfi status --json`; if not logged in,
+   `lfi login key --role AGENT --name "<agent>" --json`.
+2. **Confirm intent** with the user (amount in SOL, recipient if non-default).
+3. **Place**: `lfi perpetuals deposit-place --gross-lamports <lamports> --json`
+   - `lamports = SOL × 1_000_000_000` (1 SOL = 1e9 lamports).
+   - `--hyperliquid-recipient` is **optional** — defaults to the user's TEE
+     EVM address (`lfi whoami evmAddress`), which is what 99% of users want.
+4. **Capture** the returned `intentId` and `solanaTxHash`.
+5. **Poll**: `lfi perpetuals deposit-status <intentId> --json` until
+   `status` is `settled` (typical: 30–120 s).
+
+Server returns `status: "broadcasted"` immediately after step 3; the
+reconciliation loop progresses through `relay_waiting → relay_pending →
+settled` (or `failed_*` states). On failure consult the
+`statusHistory[]` and `lastError` fields for the recoverable / non-
+recoverable distinction.
+
+For the atomic escape-hatch flow (when the user controls their own SOL
+private key outside the TEE, or recovering from a partial failure where
+the SOL tx has been broadcasted but `submit` did not succeed), see
+[reference/deposit-flow.md](reference/deposit-flow.md).
 
 ## Typical flows
 

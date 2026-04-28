@@ -71,6 +71,8 @@ Kalshi 上有什么关于比特币的预测
 ```
 
 #### E. Perpetuals (Hyperliquid MVP)
+
+Read-only queries:
 ```
 Hyperliquid 上有哪些永续合约
 BTC 永续现在订单簿什么样
@@ -81,6 +83,50 @@ ETH 永续最近一小时 K 线给我看下
 > Order placement is two-phase (`order-prepare` returns EIP-712 typed data → wallet
 > signs externally → `order-submit` relays). Don't expect the agent to broadcast
 > a perp order without an external signer wired in.
+
+Deposit (Solana → Hyperliquid via Relay, TEE one-click):
+```
+帮我向永续合约账户入金 0.1 SOL
+Deposit 1 SOL to my Hyperliquid perpetuals account
+我想给我的 perp 账户充值
+```
+> Expected agent behaviour:
+> 1. If `lfi status` shows not authenticated → run `lfi login key` first.
+> 2. Confirm the **deposit amount** (and recipient if non-default) with the user
+>    before doing anything irreversible.
+> 3. Convert SOL → lamports (×1e9) and call
+>    `lfi perpetuals deposit-place --gross-lamports <n> --json`.
+> 4. Print the returned `intentId` + `solanaTxHash`, then poll
+>    `lfi perpetuals deposit-status <intentId>` until `status: settled`.
+>
+> Reverse case — agent must **ask for the amount** when the user says
+> "我想给我的 perp 账户充值" without a number.
+
+Deposit status query:
+```
+查一下我刚才那笔 perp 入金的状态
+强制刷新 perp deposit XXXX 的状态
+```
+> Without "强制" / "再查一次" / "force refresh" → `lfi perpetuals deposit-status <id> --json`.
+> With those modifiers → `lfi perpetuals deposit-status <id> --refresh --json`.
+
+Atomic deposit flow (advanced — escape hatch):
+```
+先帮我拿一份 perp deposit 的报价：从 <SOL 地址> 入 0.5 SOL 到 <EVM 地址>
+我已经广播了交易 <txHash>，请帮我提交 perp deposit submit
+```
+> Expected: `deposit-quote` for the first prompt, `deposit-submit` for the second.
+> Agent must **not** offer to sign / broadcast the SOL tx itself in the atomic
+> flow — the whole point of this path is that the user controls signing.
+
+Counter-examples (route to OTHER skills, not liberfi-perpetuals):
+```
+帮我充值 USDC 到 Polymarket          → liberfi-predict (polymarket-deposit-addresses)
+我想 swap SOL 换 USDC                 → liberfi-swap
+查我钱包里的 SOL 余额                  → liberfi-portfolio
+```
+> The word "充值 / 入金 / deposit" alone is not enough — agent must distinguish
+> by destination (perp account vs prediction Safe vs spot wallet vs swap).
 
 #### F. Cross-skill routing
 ```
@@ -108,7 +154,7 @@ BTC 现货价格 vs Hyperliquid BTC 永续标记价差多少
 | B. Wallet | "我自己的…" returns your real holdings / PnL / net worth |
 | C. Trading | Quote numbers reasonable; on confirm, balance changes on chain |
 | D. Prediction | Real Kalshi / Polymarket events, balance, positions |
-| E. Perpetuals | Hyperliquid coin list, live order book, your TEE wallet positions |
+| E. Perpetuals | Hyperliquid coin list, live order book, your TEE wallet positions, `deposit-place` returns intentId + tx hash, status polls until `settled` |
 | F. Cross-skill | Agent chains skills automatically without you naming them |
 
 ## VI. Troubleshooting
