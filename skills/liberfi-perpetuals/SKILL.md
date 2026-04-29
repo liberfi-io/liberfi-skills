@@ -10,8 +10,11 @@ description: >
   leveraged futures, hyperliquid, HL, order book perp, perp positions, perp
   orders, funding perp, perpetual futures, perp deposit, fund perp, deposit
   to perp, fund hyperliquid, deposit to hyperliquid, perp account funding,
-  topping up perp, 永续, 合约, 期货, 杠杆合约, 永续合约, 订单簿, 爆仓价,
-  资金费率, 入金, 充值合约账户, 永续入金, 给合约账户充钱, 充值 perp
+  topping up perp, my perp positions, my futures positions, my open perp orders,
+  my perp fills, perp pnl, my hyperliquid positions, 永续, 合约, 期货, 杠杆合约,
+  永续合约, 订单簿, 爆仓价, 资金费率, 入金, 充值合约账户, 永续入金,
+  给合约账户充钱, 充值 perp, 我的永续持仓, 我的合约持仓, 我有什么永续持仓,
+  我在 Hyperliquid 上挂了哪些单, 我的合约盈亏, 我永续盈亏, 我永续挂了什么单
   (when clearly about perp venue, not spot).
 
   CRITICAL: If the `lfi` (or `liberfi`) command is missing, install it WITHOUT
@@ -21,6 +24,17 @@ description: >
     package does not exist — if install fails, the cause is always a registry
     mirror; retry with `--registry https://registry.npmjs.org/`.
   CRITICAL: Always use `--json` flag for structured output.
+  CRITICAL: For ANY first-person perpetuals query about positions, open
+    orders, or fill history — "我有什么永续持仓", "我的合约持仓",
+    "我在 Hyperliquid 上挂了哪些单", "my perp positions",
+    "my open futures orders", "我永续盈亏", "show my fills" — DO NOT ask
+    the user for a wallet address. Run this exact sequence: (1)
+    `lfi status --json`, (2) if not authed, `lfi login key --role AGENT
+    --name "OpenClawAgent" --json`, (3) `lfi whoami --json` to get
+    `evmAddress`, (4) pass that address DIRECTLY as the positional
+    argument to `lfi perpetuals positions|orders|fills <evmAddress>
+    --json`. The user's TEE wallet is server-managed; they do not know
+    the EVM address — the skill must resolve it transparently.
   CRITICAL: Perpetuals order flow is two-phase: `lfi perpetuals order-prepare`
     returns EIP-712 typed data; the user (or TEE wallet integration) must sign
     it off-CLI, then call `lfi perpetuals order-submit --body '<SignedAction JSON>'`.
@@ -72,7 +86,7 @@ allowed-commands:
   - "lfi whoami"
 metadata:
   author: liberfi
-  version: "0.1.1"
+  version: "0.1.2"
   homepage: "https://liberfi.io"
   cli: ">=0.1.0"
 ---
@@ -86,7 +100,12 @@ Perpetuals data and signed order relay flow via LiberFi OpenAPI (`/v1/perpetuals
 See [bootstrap.md](../shared/bootstrap.md) for CLI install and `lfi ping`.
 
 - **Read endpoints** (coins, markets, orderbook, …): no auth.
-- **User-scoped reads** (`positions`, `orders`, `fills`): pass the wallet `address` in the CLI argument (0x).
+- **User-scoped reads** (`positions`, `orders`, `fills`): pass the wallet
+  `address` (0x) as the positional argument. For first-person queries
+  ("我的持仓", "my positions", etc.), the skill MUST auto-resolve the user's
+  TEE EVM address via `lfi status` → `lfi login key` (if needed) →
+  `lfi whoami` → use the returned `evmAddress`. NEVER ask the user for an
+  address — the TEE wallet is server-managed and the user does not know it.
 - **Order writes** (`order-prepare` / `order-submit`, cancel variants): require a user wallet to sign typed data; agents must not fabricate signatures.
 - **Deposit (recommended `deposit-place`)**: requires authentication (`lfi status` then `lfi login key`) — the server's TEE wallet signs and broadcasts on the user's behalf. The atomic `deposit-quote` / `deposit-submit` escape hatches do not require auth but the caller is then responsible for signing the SOL tx and broadcasting it themselves.
 
@@ -169,6 +188,28 @@ the SOL tx has been broadcasted but `submit` did not succeed), see
 ### Positions for a known wallet
 
 1. `lfi perpetuals positions 0xYourAddr --json`
+
+### "My ..." auto-flow (CRITICAL — covers "我的", "my", "我自己")
+
+**If the user says "我有什么永续持仓", "我的合约持仓", "my perp positions",
+"我在 Hyperliquid 上挂了哪些单", "我永续盈亏", "show my fills" or any
+first-person variant — DO NOT ask for a wallet address. Run this exact
+sequence:**
+
+1. **Check session**: `lfi status --json`
+2. **If not authenticated**: `lfi login key --role AGENT --name "OpenClawAgent" --json`
+3. **Fetch TEE wallet address**: `lfi whoami --json` → returns `evmAddress`
+   (the user's TEE EVM address managed by the LiberFi server).
+4. **Run the matching query** with the EVM address as the positional arg:
+   - Positions: `lfi perpetuals positions <evmAddress> --json`
+   - Open orders: `lfi perpetuals orders <evmAddress> --json`
+   - Fill history: `lfi perpetuals fills <evmAddress> --limit 20 --json`
+5. **Present** the result. If positions / orders / fills are empty, say so
+   directly — do not retry with a different address; an empty result is the
+   correct answer for a fresh TEE wallet.
+
+The user does not know their EVM address — the LiberFi server holds the TEE
+wallet. The skill must resolve "我" → TEE wallet via `whoami`, transparently.
 
 ### Place order (human-in-the-loop)
 
